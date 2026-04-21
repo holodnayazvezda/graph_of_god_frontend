@@ -75,9 +75,16 @@
           <div class="graph-stage">
             <div class="graph-toolbar">
               <div id="focus-state" class="focus-state" hidden></div>
-              <button type="button" id="clear-focus-button" class="button ghost subtle" hidden>
-                Показать весь граф
-              </button>
+              <div class="graph-toolbar-actions">
+                <span class="graph-hint">Потяните граф мышью, колесо прокрутки меняет масштаб</span>
+                <span id="zoom-level" class="zoom-level" hidden>100%</span>
+                <button type="button" id="clear-focus-button" class="button ghost subtle" hidden>
+                  Показать весь граф
+                </button>
+                <button type="button" id="reset-view-button" class="button ghost subtle" hidden>
+                  Сбросить вид
+                </button>
+              </div>
             </div>
             <div id="empty-state" class="empty-state">
               <h2>Граф пока не построен</h2>
