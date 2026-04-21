@@ -1,0 +1,114 @@
+.page-shell {
+  width: min(1440px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 28px 0 40px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.7fr);
+  gap: 20px;
+  align-items: stretch;
+  margin-bottom: 22px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: stretch;
+}
+
+.insights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 22px;
+}
+
+@media (max-width: 1100px) {
+  .hero,
+  .workspace,
+  .insights {
+    grid-template-columns: 1fr;
+  }
+
+  .graph-panel {
+    min-height: 640px;
+  }
+
+  .control-panel {
+    min-height: auto;
+  }
+
+  .graph-stage,
+  #graph-canvas {
+    min-height: 600px;
+    height: 600px;
+  }
+
+  .graph-toolbar {
+    left: 12px;
+    right: 12px;
+    top: 12px;
+  }
+
+  .graph-toolbar-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-shell {
+    width: min(100vw - 20px, 1440px);
+    padding-top: 18px;
+  }
+
+  .hero-copy,
+  .hero-card,
+  .control-panel,
+  .graph-panel,
+  .insight-card {
+    border-radius: 22px;
+  }
+
+  .hero-copy,
+  .hero-card,
+  .control-panel,
+  .insight-card {
+    padding: 18px;
+  }
+
+  .graph-panel {
+    padding: 12px;
+  }
+
+  .form-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .graph-stage,
+  #graph-canvas {
+    min-height: 480px;
+    height: 480px;
+  }
+
+  .graph-toolbar {
+    position: absolute;
+    display: grid;
+    justify-items: start;
+  }
+
+  .graph-toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .focus-state {
+    max-width: calc(100% - 12px);
+    white-space: normal;
+  }
+
+  .graph-hint {
+    display: none;
+  }
+}

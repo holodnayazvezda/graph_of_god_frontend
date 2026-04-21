@@ -1,0 +1,36 @@
+<aside class="control-panel">
+  <div class="panel-head">
+    <h2>Профили VK</h2>
+    <p>До пяти профилей за один запуск. Можно добавлять и удалять строки прямо здесь.</p>
+  </div>
+
+  <form id="profiles-form" class="profile-form">
+    <div id="profiles-list" class="profiles-list"></div>
+
+    <div class="form-actions">
+      <button type="button" id="add-profile-button" class="button ghost">
+        Добавить профиль
+      </button>
+      <button type="submit" id="submit-button" class="button primary">
+        Построить граф
+      </button>
+    </div>
+  </form>
+
+  <section id="status-panel" class="status-panel">
+    <p class="status-kicker">Статус</p>
+    <h3 id="status-title">Ожидание запроса</h3>
+    <p id="status-text">
+      После запуска здесь появится состояние backend job и подробности по загрузке данных.
+    </p>
+  </section>
+
+  <section class="legend-panel">
+    <h3>Легенда</h3>
+    <div class="legend-list">
+      <span class="legend-chip seed">Seed-профиль</span>
+      <span class="legend-chip shared">Общий друг</span>
+      <span class="legend-chip single">Одиночная связь</span>
+    </div>
+  </section>
+</aside>

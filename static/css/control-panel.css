@@ -1,0 +1,132 @@
+.control-panel {
+  padding: 22px;
+  display: grid;
+  gap: 18px;
+  min-height: 760px;
+  height: 100%;
+  align-content: start;
+}
+
+.profile-form {
+  display: grid;
+  gap: 22px;
+}
+
+.profiles-list {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(20, 33, 43, 0.08);
+}
+
+.profile-index {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(20, 33, 43, 0.06);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.profile-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.profile-input::placeholder {
+  color: rgba(74, 92, 102, 0.8);
+}
+
+.form-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.form-actions .button {
+  width: 100%;
+}
+
+.status-panel,
+.legend-panel {
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(20, 33, 43, 0.08);
+}
+
+.status-kicker {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.status-panel h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.status-panel.is-loading {
+  border-color: rgba(214, 164, 77, 0.35);
+}
+
+.status-panel.is-success {
+  border-color: rgba(31, 122, 111, 0.28);
+}
+
+.status-panel.is-error {
+  border-color: rgba(244, 107, 69, 0.35);
+}
+
+.legend-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.87rem;
+  background: rgba(20, 33, 43, 0.06);
+}
+
+.legend-chip::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-chip.seed::before {
+  background: var(--seed);
+}
+
+.legend-chip.shared::before {
+  background: var(--shared);
+}
+
+.legend-chip.single::before {
+  background: var(--single);
+}

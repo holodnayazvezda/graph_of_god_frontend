@@ -1,0 +1,106 @@
+.insight-card {
+  padding: 22px;
+}
+
+.seed-profiles-list,
+.overlaps-list {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.seed-card,
+.overlap-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(20, 33, 43, 0.08);
+}
+
+.seed-card.is-active,
+.overlap-card.is-active {
+  border-color: rgba(31, 122, 111, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(31, 122, 111, 0.12);
+}
+
+.seed-card-head,
+.overlap-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.seed-card-head {
+  align-items: center;
+}
+
+.seed-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.seed-card-copy {
+  min-width: 0;
+}
+
+.seed-card-copy p {
+  margin: 6px 0 0;
+}
+
+.seed-card h3,
+.overlap-card h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.seed-card p,
+.overlap-card p {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.seed-flags,
+.overlap-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.seed-card-actions,
+.overlap-card-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.overlap-card-actions {
+  align-items: flex-start;
+}
+
+.seed-card-actions .muted,
+.overlap-card-actions .overlap-meta {
+  margin-top: 0;
+}
+
+.overlap-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.preview-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(20, 33, 43, 0.06);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}

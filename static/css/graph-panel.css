@@ -1,0 +1,133 @@
+.graph-panel {
+  padding: 18px;
+  min-height: 760px;
+  height: 100%;
+}
+
+.graph-stage {
+  position: relative;
+  min-height: 720px;
+  height: 100%;
+  border-radius: calc(var(--radius-xl) - 8px);
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.76) 0%, rgba(246, 240, 230, 0.9) 100%);
+  border: 1px solid rgba(20, 33, 43, 0.06);
+}
+
+#graph-canvas,
+.empty-state,
+.graph-toolbar {
+  position: relative;
+  z-index: 1;
+}
+
+#graph-canvas {
+  width: 100%;
+  height: 720px;
+  display: block;
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+}
+
+#graph-canvas.is-interactive {
+  cursor: grab;
+}
+
+#graph-canvas.is-interactive.is-panning {
+  cursor: grabbing;
+}
+
+.graph-toolbar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.graph-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  pointer-events: auto;
+}
+
+.focus-state {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(20, 33, 43, 0.78);
+  color: white;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  max-width: min(72%, 640px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-hint,
+.zoom-level {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  border: 1px solid rgba(20, 33, 43, 0.08);
+}
+
+.zoom-level {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  text-align: center;
+  z-index: 2;
+}
+
+.empty-state[hidden] {
+  display: none !important;
+}
+
+.empty-state h2 {
+  margin: 0 0 12px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+}
+
+.empty-state p {
+  max-width: 42ch;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.graph-tooltip {
+  position: absolute;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(20, 33, 43, 0.92);
+  color: white;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  pointer-events: none;
+  box-shadow: 0 12px 30px rgba(20, 33, 43, 0.25);
+  transform: translate(14px, 14px);
+  z-index: 4;
+}

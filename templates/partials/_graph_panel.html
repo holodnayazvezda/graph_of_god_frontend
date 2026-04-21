@@ -1,0 +1,30 @@
+<section class="graph-panel">
+  <div class="graph-stage">
+    <div class="graph-toolbar">
+      <div id="focus-state" class="focus-state" hidden></div>
+      <div class="graph-toolbar-actions">
+        <span class="graph-hint">Потяните граф мышью, колесо прокрутки меняет масштаб</span>
+        <span id="zoom-level" class="zoom-level" hidden>100%</span>
+        <button type="button" id="highlight-all-button" class="button ghost subtle" hidden>
+          Подсветить все связи
+        </button>
+        <button type="button" id="reset-view-button" class="button ghost subtle" hidden>
+          Сбросить вид
+        </button>
+      </div>
+    </div>
+
+    <div id="empty-state" class="empty-state">
+      <div>
+        <h2>Граф пока не построен</h2>
+        <p>
+          Введите хотя бы один профиль VK, запустите сбор и дождитесь, пока frontend
+          получит готовый social graph из backend.
+        </p>
+      </div>
+    </div>
+
+    <canvas id="graph-canvas"></canvas>
+    <div id="graph-tooltip" class="graph-tooltip" hidden></div>
+  </div>
+</section>
