@@ -64,12 +64,7 @@ body {
 }
 
 .hero-copy::after {
-  content: "";
-  position: absolute;
-  inset: auto -20% -30% 40%;
-  height: 220px;
-  background: radial-gradient(circle, rgba(214, 164, 77, 0.25) 0%, transparent 60%);
-  pointer-events: none;
+  display: none;
 }
 
 .eyebrow {
@@ -136,7 +131,7 @@ body {
   display: grid;
   grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
   gap: 22px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .control-panel,
@@ -149,6 +144,14 @@ body {
   padding: 22px;
   display: grid;
   gap: 18px;
+  min-height: 760px;
+  height: 100%;
+  align-content: start;
+}
+
+.profile-form {
+  display: grid;
+  gap: 22px;
 }
 
 .panel-head p,
@@ -227,16 +230,23 @@ body {
 }
 
 .form-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  flex-wrap: wrap;
 }
 
 .button {
   padding: 13px 18px;
   border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
   font-size: 0.95rem;
+}
+
+.form-actions .button {
+  width: 100%;
 }
 
 .button.primary {
@@ -332,6 +342,7 @@ body {
 .graph-panel {
   padding: 18px;
   min-height: 760px;
+  height: 100%;
 }
 
 .graph-stage {
@@ -622,6 +633,10 @@ body {
     min-height: 640px;
   }
 
+  .control-panel {
+    min-height: auto;
+  }
+
   .graph-stage,
   #graph-canvas {
     min-height: 600px;
@@ -662,6 +677,10 @@ body {
 
   .graph-panel {
     padding: 12px;
+  }
+
+  .form-actions {
+    grid-template-columns: 1fr;
   }
 
   .graph-stage,

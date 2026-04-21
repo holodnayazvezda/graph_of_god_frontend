@@ -1,4 +1,6 @@
 window.addEventListener("DOMContentLoaded", function () {
+  const DEFAULT_AVATAR_BUCKETS = [12, 16, 20, 24, 32, 40, 52];
+  const ALL_SHARED_FOCUS_KEY = "shared:all";
   const body = document.body;
   const maxProfiles = Number(body.dataset.maxProfiles || 5);
   const pollIntervalMs = Number(body.dataset.pollIntervalMs || 1500);
@@ -19,7 +21,7 @@ window.addEventListener("DOMContentLoaded", function () {
   const tooltip = document.getElementById("graph-tooltip");
   const canvas = document.getElementById("graph-canvas");
   const focusState = document.getElementById("focus-state");
-  const clearFocusButton = document.getElementById("clear-focus-button");
+  const highlightAllButton = document.getElementById("highlight-all-button");
   const zoomLevel = document.getElementById("zoom-level");
   const resetViewButton = document.getElementById("reset-view-button");
 
@@ -49,7 +51,7 @@ window.addEventListener("DOMContentLoaded", function () {
       updateProfileControls();
     });
 
-    clearFocusButton.addEventListener("click", () => applyFocus(null));
+    highlightAllButton.addEventListener("click", toggleAllSharedFocus);
     resetViewButton.addEventListener("click", () => renderer.resetView());
     form.addEventListener("submit", onSubmit);
     window.addEventListener("resize", () => renderer.handleResize());
@@ -193,7 +195,7 @@ window.addEventListener("DOMContentLoaded", function () {
   function setLoadingState(isLoading) {
     submitButton.disabled = isLoading;
     addProfileButton.disabled = isLoading || profilesList.children.length >= maxProfiles;
-    clearFocusButton.disabled = isLoading;
+    highlightAllButton.disabled = isLoading;
     resetViewButton.disabled = isLoading;
     [...profilesList.querySelectorAll(".profile-input, .icon-button")].forEach((element) => {
       element.disabled = isLoading;
@@ -436,6 +438,48 @@ window.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function toggleAllSharedFocus() {
+    if (!state.result) {
+      return;
+    }
+
+    if (state.focusKey === ALL_SHARED_FOCUS_KEY) {
+      applyFocus(null);
+      return;
+    }
+
+    const selectedNodeIds = new Set();
+    const activeSeedIndices = new Set();
+
+    state.result.nodes.forEach((node) => {
+      if (node.is_seed) {
+        return;
+      }
+
+      if (node.connected_seed_indices.length >= 2) {
+        selectedNodeIds.add(node.node_id);
+        node.connected_seed_indices.forEach((seedIndex) => activeSeedIndices.add(seedIndex));
+      }
+    });
+
+    if (!selectedNodeIds.size) {
+      return;
+    }
+
+    state.result.seed_profiles.forEach((profile) => {
+      if (activeSeedIndices.has(profile.seed_index)) {
+        selectedNodeIds.add(profile.node_id);
+      }
+    });
+
+    applyFocus({
+      key: ALL_SHARED_FOCUS_KEY,
+      label: `Все общие связи: ${state.result.stats.shared_node_count} общих друзей`,
+      seedIndices: [...activeSeedIndices].sort((left, right) => left - right),
+      nodeIds: [...selectedNodeIds],
+    });
+  }
+
   function applyFocus(focus) {
     state.focusKey = focus?.key || null;
     state.focusLabel = focus?.label || null;
@@ -446,8 +490,8 @@ window.addEventListener("DOMContentLoaded", function () {
 
   function updateFocusUi() {
     focusState.hidden = !state.focusLabel;
-    clearFocusButton.hidden = !state.focusKey;
     focusState.textContent = state.focusLabel || "";
+    updateHighlightAllButton();
   }
 
   function updateViewportUi(viewportState) {
@@ -456,6 +500,16 @@ window.addEventListener("DOMContentLoaded", function () {
     resetViewButton.hidden = !hasData;
     zoomLevel.textContent = `${Math.round((viewportState?.scale || 1) * 100)}%`;
     resetViewButton.disabled = !hasData || !viewportState?.canReset;
+  }
+
+  function updateHighlightAllButton() {
+    const hasData = Boolean(state.result);
+    const hasSharedNodes = (state.result?.stats?.shared_node_count || 0) > 0;
+    const isActive = state.focusKey === ALL_SHARED_FOCUS_KEY;
+
+    highlightAllButton.hidden = !hasData;
+    highlightAllButton.disabled = !hasData || !hasSharedNodes;
+    highlightAllButton.textContent = isActive ? "Снять подсветку" : "Подсветить все связи";
   }
 
   function updateActiveCards() {
@@ -558,6 +612,7 @@ class GraphViewport {
     this.minScale = options.minScale || 0.35;
     this.maxScale = options.maxScale || 3.5;
     this.fitPadding = options.fitPadding || 72;
+    this.overviewScaleFactor = options.overviewScaleFactor || (1 / 1.5);
     this.reset();
   }
 
@@ -597,6 +652,7 @@ class GraphViewport {
     }
 
     nextScale = clamp(nextScale, this.minScale, Math.min(this.maxScale, 1.45));
+    nextScale = clamp(nextScale * this.overviewScaleFactor, this.minScale, this.maxScale);
     this.scale = nextScale;
 
     const centerX = bounds.minX + width / 2;
@@ -958,10 +1014,15 @@ class GraphRenderer {
     this.ctx = canvas.getContext("2d");
     this.result = null;
     this.focus = null;
+    this.renderProfile = null;
     this.currentPositions = new Map();
+    this.hitItems = [];
+    this.hoveredNodeId = null;
     this.nodeLayout = [];
     this.nodeLayoutById = new Map();
+    this.connectionIndex = new Map();
     this.imageCache = new Map();
+    this.avatarSpriteCache = new Map();
     this.viewport = new GraphViewport();
     this.viewportListener = null;
     this.dragState = null;
@@ -969,6 +1030,7 @@ class GraphRenderer {
     this.animationFrameId = null;
     this.animationStart = 0;
     this.pendingRender = false;
+    this.canvasMetrics = null;
     this.bindEvents();
     this.clear();
   }
@@ -980,6 +1042,7 @@ class GraphRenderer {
     this.canvas.addEventListener("pointercancel", (event) => this.onPointerUp(event));
     this.canvas.addEventListener("pointerleave", () => {
       if (!this.dragState?.isPanning) {
+        this.hoveredNodeId = null;
         this.tooltip.hidden = true;
       }
     });
@@ -994,9 +1057,14 @@ class GraphRenderer {
   setData(result) {
     this.result = result;
     this.focus = null;
+    this.renderProfile = this.resolveRenderProfile(result);
     this.currentPositions = new Map();
+    this.hitItems = [];
+    this.hoveredNodeId = null;
+    this.avatarSpriteCache.clear();
     this.nodeLayout = this.buildLayout(result);
     this.reindexLayout();
+    this.connectionIndex = this.buildConnectionIndex(result.edges);
     this.preloadAvatars(result.nodes);
     this.canvas.classList.add("is-interactive");
     this.canvas.classList.remove("is-panning");
@@ -1054,10 +1122,15 @@ class GraphRenderer {
 
     this.result = null;
     this.focus = null;
+    this.renderProfile = null;
     this.dragState = null;
     this.currentPositions = new Map();
+    this.hitItems = [];
+    this.hoveredNodeId = null;
     this.nodeLayout = [];
     this.nodeLayoutById = new Map();
+    this.connectionIndex = new Map();
+    this.avatarSpriteCache.clear();
     this.viewport.reset();
     this.layoutDirty = false;
     this.canvas.classList.remove("is-interactive", "is-panning");
@@ -1088,10 +1161,20 @@ class GraphRenderer {
     const entry = { status: "loading", image };
     image.onload = () => {
       entry.status = "loaded";
+      this.avatarSpriteCache.forEach((_, cacheKey) => {
+        if (cacheKey.startsWith(`${url}@`)) {
+          this.avatarSpriteCache.delete(cacheKey);
+        }
+      });
       this.requestRender();
     };
     image.onerror = () => {
       entry.status = "error";
+      this.avatarSpriteCache.forEach((_, cacheKey) => {
+        if (cacheKey.startsWith(`${url}@`)) {
+          this.avatarSpriteCache.delete(cacheKey);
+        }
+      });
       this.requestRender();
     };
     image.src = url;
@@ -1138,12 +1221,44 @@ class GraphRenderer {
     this.nodeLayoutById = new Map(this.nodeLayout.map((item) => [item.node.node_id, item]));
   }
 
+  buildConnectionIndex(edges) {
+    const index = new Map();
+
+    edges.forEach((edge) => {
+      if (!index.has(edge.source_node_id)) {
+        index.set(edge.source_node_id, new Set());
+      }
+      if (!index.has(edge.target_node_id)) {
+        index.set(edge.target_node_id, new Set());
+      }
+
+      index.get(edge.source_node_id).add(edge.target_node_id);
+      index.get(edge.target_node_id).add(edge.source_node_id);
+    });
+
+    return index;
+  }
+
   resizeCanvas() {
     const rect = this.canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    this.canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-    this.canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    const width = Math.max(1, Math.floor(rect.width * dpr));
+    const height = Math.max(1, Math.floor(rect.height * dpr));
+
+    if (
+      this.canvasMetrics
+      && this.canvasMetrics.width === width
+      && this.canvasMetrics.height === height
+      && this.canvasMetrics.dpr === dpr
+    ) {
+      return rect;
+    }
+
+    this.canvas.width = width;
+    this.canvas.height = height;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.canvasMetrics = { width, height, dpr };
+    return rect;
   }
 
   fitViewToLayout() {
@@ -1157,9 +1272,9 @@ class GraphRenderer {
   }
 
   render(progress = 1) {
-    this.resizeCanvas();
-    const width = this.canvas.getBoundingClientRect().width;
-    const height = this.canvas.getBoundingClientRect().height;
+    const rect = this.resizeCanvas();
+    const width = rect.width;
+    const height = rect.height;
 
     this.ctx.clearRect(0, 0, width, height);
     if (!this.result || !this.nodeLayout.length) {
@@ -1182,9 +1297,11 @@ class GraphRenderer {
       });
     }
 
+    const nodeBounds = createScreenBounds(width, height, this.renderProfile?.nodeCullPadding || 108);
+    const edgeBounds = createScreenBounds(width, height, this.renderProfile?.edgeCullPadding || 148);
     this.drawBackdrop(width, height);
-    this.drawEdges(positions);
-    this.drawNodes(positions);
+    this.drawEdges(positions, edgeBounds);
+    this.drawNodes(positions, nodeBounds);
     this.currentPositions = positions;
   }
 
@@ -1209,7 +1326,9 @@ class GraphRenderer {
     gradient.addColorStop(1, "rgba(31, 122, 111, 0.05)");
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, width, height);
-    this.drawGrid(width, height);
+    if (this.renderProfile?.showGrid) {
+      this.drawGrid(width, height);
+    }
   }
 
   drawGrid(width, height) {
@@ -1242,7 +1361,7 @@ class GraphRenderer {
     this.ctx.restore();
   }
 
-  drawEdges(positions) {
+  drawEdges(positions, visibleBounds) {
     const focusNodeIds = this.focus?.nodeIds || null;
 
     this.ctx.save();
@@ -1250,6 +1369,7 @@ class GraphRenderer {
       const source = positions.get(edge.source_node_id);
       const target = positions.get(edge.target_node_id);
       if (!source || !target) continue;
+      if (!isSegmentVisible(source, target, visibleBounds)) continue;
 
       const isActive = !focusNodeIds || (focusNodeIds.has(edge.source_node_id) && focusNodeIds.has(edge.target_node_id));
       this.ctx.globalAlpha = isActive ? 1 : 0.08;
@@ -1266,24 +1386,35 @@ class GraphRenderer {
     this.ctx.restore();
   }
 
-  drawNodes(positions) {
-    const ordered = [...positions.values()].sort((left, right) => {
+  drawNodes(positions, visibleBounds) {
+    const visibleItems = [...positions.values()].filter((item) => isCircleVisible(item, visibleBounds));
+    const ordered = visibleItems.sort((left, right) => {
       if (left.node.is_seed !== right.node.is_seed) {
         return left.node.is_seed ? -1 : 1;
       }
       return right.node.shared_seed_count - left.node.shared_seed_count;
     });
+    this.hitItems = [...ordered].sort((left, right) => {
+      if (left.node.is_seed !== right.node.is_seed) {
+        return left.node.is_seed ? -1 : 1;
+      }
+      return right.radius - left.radius;
+    });
 
-    const labeledIds = new Set(
+    const labeledIds = new Set();
+    const canRenderSeedLabels = this.viewport.scale >= (this.renderProfile?.minLabelScale || 0.74);
+    const canRenderFocusLabels = this.viewport.scale >= (this.renderProfile?.minFocusLabelScale || 0.64);
+
+    if (canRenderSeedLabels) {
       ordered
         .filter((item) => item.node.is_seed)
-        .map((item) => item.node.node_id),
-    );
+        .forEach((item) => labeledIds.add(item.node.node_id));
+    }
 
-    if (this.focus && this.focus.nodeIds.size <= 12) {
+    if (canRenderFocusLabels && this.focus && this.focus.nodeIds.size <= 12) {
       ordered
         .filter((item) => !item.node.is_seed && this.focus.nodeIds.has(item.node.node_id))
-        .slice(0, 8)
+        .slice(0, this.renderProfile?.focusLabelLimit || 8)
         .forEach((item) => labeledIds.add(item.node.node_id));
     }
 
@@ -1308,31 +1439,22 @@ class GraphRenderer {
 
     this.ctx.save();
     this.ctx.globalAlpha = isActive ? 1 : 0.14;
-    this.ctx.shadowBlur = isActive ? clamp(item.radius * 0.65, 0, 18) : 0;
-    this.ctx.shadowColor = item.node.shared_seed_count >= 2
-      ? "rgba(31, 122, 111, 0.18)"
-      : "rgba(20, 33, 43, 0.1)";
+    if (this.renderProfile?.showShadows && isActive) {
+      this.ctx.shadowBlur = clamp(item.radius * 0.65, 0, 18);
+      this.ctx.shadowColor = item.node.shared_seed_count >= 2
+        ? "rgba(31, 122, 111, 0.18)"
+        : "rgba(20, 33, 43, 0.1)";
+    } else {
+      this.ctx.shadowBlur = 0;
+    }
 
     this.ctx.beginPath();
     this.ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
     this.ctx.fillStyle = "rgba(255, 255, 255, 0.96)";
     this.ctx.fill();
 
-    const avatarEntry = item.node.avatar_url ? this.ensureAvatar(item.node.avatar_url) : null;
-    if (avatarEntry?.status === "loaded" && item.radius >= 6) {
-      this.ctx.save();
-      this.ctx.beginPath();
-      this.ctx.arc(item.x, item.y, item.radius - 1.2, 0, Math.PI * 2);
-      this.ctx.clip();
-      this.ctx.drawImage(
-        avatarEntry.image,
-        item.x - item.radius,
-        item.y - item.radius,
-        item.radius * 2,
-        item.radius * 2,
-      );
-      this.ctx.restore();
-    } else {
+    const hasAvatar = this.drawAvatar(item);
+    if (!hasAvatar) {
       this.ctx.beginPath();
       this.ctx.arc(item.x, item.y, Math.max(1, item.radius - 1.2), 0, Math.PI * 2);
       this.ctx.fillStyle = ringColor;
@@ -1357,6 +1479,56 @@ class GraphRenderer {
     }
 
     this.ctx.restore();
+  }
+
+  drawAvatar(item) {
+    if (!item.node.avatar_url || item.radius < 4.5) {
+      return false;
+    }
+
+    const sprite = this.ensureAvatarSprite(item.node.avatar_url, item.radius);
+    if (!sprite) {
+      return false;
+    }
+
+    this.ctx.drawImage(
+      sprite,
+      item.x - sprite.width / 2,
+      item.y - sprite.height / 2,
+      sprite.width,
+      sprite.height,
+    );
+    return true;
+  }
+
+  ensureAvatarSprite(url, radius) {
+    const bucketSize = this.resolveAvatarBucketSize(radius);
+    const cacheKey = `${url}@${bucketSize}`;
+    if (this.avatarSpriteCache.has(cacheKey)) {
+      return this.avatarSpriteCache.get(cacheKey);
+    }
+
+    const avatarEntry = this.ensureAvatar(url);
+    if (avatarEntry?.status !== "loaded") {
+      return null;
+    }
+
+    const sprite = createAvatarSprite(avatarEntry.image, bucketSize);
+    this.avatarSpriteCache.set(cacheKey, sprite);
+    return sprite;
+  }
+
+  resolveAvatarBucketSize(radius) {
+    const diameter = Math.max(8, Math.ceil((radius - 1.2) * 2));
+    const buckets = this.renderProfile?.avatarBuckets || DEFAULT_AVATAR_BUCKETS;
+
+    for (const bucket of buckets) {
+      if (diameter <= bucket) {
+        return bucket;
+      }
+    }
+
+    return buckets[buckets.length - 1];
   }
 
   drawInitials(item) {
@@ -1390,6 +1562,24 @@ class GraphRenderer {
     }).createLayout();
   }
 
+  resolveRenderProfile(result) {
+    const nodeCount = result.nodes.length;
+    return {
+      showGrid: nodeCount <= 420,
+      showShadows: nodeCount <= 320,
+      focusLabelLimit: nodeCount <= 180 ? 8 : nodeCount <= 360 ? 5 : 3,
+      nodeCullPadding: nodeCount <= 240 ? 132 : nodeCount <= 520 ? 108 : 92,
+      edgeCullPadding: nodeCount <= 240 ? 168 : nodeCount <= 520 ? 144 : 120,
+      minLabelScale: nodeCount <= 240 ? 0.68 : nodeCount <= 520 ? 0.8 : 0.92,
+      minFocusLabelScale: nodeCount <= 240 ? 0.6 : nodeCount <= 520 ? 0.72 : 0.82,
+      avatarBuckets: nodeCount <= 220
+        ? [12, 16, 20, 24, 28, 36, 48, 64, 80]
+        : nodeCount <= 520
+          ? [12, 16, 20, 24, 32, 44, 60]
+          : [12, 16, 20, 24, 32, 40, 52],
+    };
+  }
+
   onPointerDown(event) {
     if (!this.result || event.button !== 0) {
       return;
@@ -1403,13 +1593,7 @@ class GraphRenderer {
 
     if (hitNode) {
       const pointerWorld = this.viewport.screenToWorld(pointerX, pointerY);
-      this.dragState = {
-        mode: "node",
-        pointerId: event.pointerId,
-        nodeId: hitNode.node.node_id,
-        offsetX: hitNode.worldX - pointerWorld.x,
-        offsetY: hitNode.worldY - pointerWorld.y,
-      };
+      this.dragState = this.createNodeDragState(hitNode, pointerWorld, event.pointerId);
       this.canvas.classList.add("is-panning");
       this.tooltip.hidden = true;
       this.canvas.setPointerCapture(event.pointerId);
@@ -1440,10 +1624,7 @@ class GraphRenderer {
         if (layoutNode) {
           const nextX = pointerWorld.x + this.dragState.offsetX;
           const nextY = pointerWorld.y + this.dragState.offsetY;
-          layoutNode.startX = nextX;
-          layoutNode.startY = nextY;
-          layoutNode.targetX = nextX;
-          layoutNode.targetY = nextY;
+          this.applyDraggedNodePosition(layoutNode, nextX, nextY, this.dragState);
           this.layoutDirty = true;
           this.tooltip.hidden = true;
           this.notifyViewportChange();
@@ -1485,9 +1666,14 @@ class GraphRenderer {
       this.canvas.releasePointerCapture(event.pointerId);
     }
 
+    const finishedDragState = this.dragState;
     const wasPanning = this.dragState.mode === "pan" && this.dragState.isPanning;
     this.dragState = null;
     this.canvas.classList.remove("is-panning");
+
+    if (finishedDragState.mode === "node") {
+      this.commitDraggedNodeState(finishedDragState);
+    }
 
     if (!wasPanning) {
       this.updateHover(event);
@@ -1523,6 +1709,7 @@ class GraphRenderer {
     const hovered = this.getHitNode(pointerX, pointerY);
 
     if (!hovered) {
+      this.hoveredNodeId = null;
       this.tooltip.hidden = true;
       return;
     }
@@ -1533,10 +1720,13 @@ class GraphRenderer {
         ? `Общий друг профилей ${hovered.node.connected_seed_indices.map((index) => `#${index + 1}`).join(", ")}`
         : `Друг профиля #${(hovered.node.connected_seed_indices[0] || 0) + 1}`;
 
-    this.tooltip.innerHTML = `
-      <strong>${escapeTooltip(hovered.node.full_name)}</strong><br>
-      <span>${escapeTooltip(relationshipLabel)}</span>
-    `;
+    if (this.hoveredNodeId !== hovered.node.node_id) {
+      this.tooltip.innerHTML = `
+        <strong>${escapeTooltip(hovered.node.full_name)}</strong><br>
+        <span>${escapeTooltip(relationshipLabel)}</span>
+      `;
+      this.hoveredNodeId = hovered.node.node_id;
+    }
     this.tooltip.style.left = `${pointerX}px`;
     this.tooltip.style.top = `${pointerY}px`;
     this.tooltip.hidden = false;
@@ -1544,12 +1734,7 @@ class GraphRenderer {
 
   getHitNode(pointerX, pointerY) {
     const focusNodeIds = this.focus?.nodeIds || null;
-    const hoverOrder = [...this.currentPositions.values()].sort((left, right) => {
-      if (left.node.is_seed !== right.node.is_seed) {
-        return left.node.is_seed ? -1 : 1;
-      }
-      return right.radius - left.radius;
-    });
+    const hoverOrder = this.hitItems.length ? this.hitItems : [...this.currentPositions.values()];
 
     for (const item of hoverOrder) {
       if (focusNodeIds && !focusNodeIds.has(item.node.node_id)) {
@@ -1563,6 +1748,201 @@ class GraphRenderer {
     }
 
     return null;
+  }
+
+  createNodeDragState(hitNode, pointerWorld, pointerId) {
+    const dragProfile = this.resolveDragProfile(hitNode.node);
+    const influenceMap = this.collectDragInfluences(hitNode.node.node_id, dragProfile);
+    const originPositions = new Map();
+
+    originPositions.set(hitNode.node.node_id, {
+      x: hitNode.worldX,
+      y: hitNode.worldY,
+    });
+
+    influenceMap.forEach((_, nodeId) => {
+      const layoutNode = this.nodeLayoutById.get(nodeId);
+      if (!layoutNode) return;
+
+      originPositions.set(nodeId, {
+        x: layoutNode.targetX,
+        y: layoutNode.targetY,
+      });
+    });
+
+    return {
+      mode: "node",
+      pointerId,
+      nodeId: hitNode.node.node_id,
+      offsetX: hitNode.worldX - pointerWorld.x,
+      offsetY: hitNode.worldY - pointerWorld.y,
+      originX: hitNode.worldX,
+      originY: hitNode.worldY,
+      originPositions,
+      influenceMap,
+      dragProfile,
+    };
+  }
+
+  collectDragInfluences(rootNodeId, dragProfile) {
+    const influences = new Map();
+    const visited = new Set([rootNodeId]);
+    const queue = [{ nodeId: rootNodeId, depth: 0 }];
+    const maxDepth = dragProfile.maxDepth;
+    const maxNodes = dragProfile.maxNodes;
+
+    while (queue.length && influences.size < maxNodes) {
+      const current = queue.shift();
+      if (!current || current.depth >= maxDepth) {
+        continue;
+      }
+
+      const neighbors = this.connectionIndex.get(current.nodeId);
+      if (!neighbors) {
+        continue;
+      }
+
+      for (const neighborId of neighbors) {
+        if (visited.has(neighborId)) {
+          continue;
+        }
+
+        const neighborLayout = this.nodeLayoutById.get(neighborId);
+        if (!neighborLayout) {
+          continue;
+        }
+
+        visited.add(neighborId);
+        const depth = current.depth + 1;
+        influences.set(neighborId, {
+          depth,
+          weight: this.resolveMagnetWeight(depth, neighborLayout.node, dragProfile),
+          slack: this.resolveMagnetSlack(depth, neighborLayout.node, dragProfile),
+          smoothing: this.resolveMagnetSmoothing(depth, dragProfile),
+        });
+
+        if (depth < maxDepth && influences.size < maxNodes) {
+          queue.push({ nodeId: neighborId, depth });
+        }
+      }
+    }
+
+    return influences;
+  }
+
+  resolveDragProfile(node) {
+    if (node.is_seed) {
+      return {
+        kind: "seed",
+        couplingScale: 1.14,
+        slackShift: -12,
+        smoothingScale: 1.06,
+        maxDepth: 3,
+        maxNodes: 120,
+      };
+    }
+
+    if (node.shared_seed_count >= 2) {
+      return {
+        kind: "shared",
+        couplingScale: 0.76,
+        slackShift: 12,
+        smoothingScale: 0.92,
+        maxDepth: 3,
+        maxNodes: 72,
+      };
+    }
+
+    return {
+      kind: "single",
+      couplingScale: 0.62,
+      slackShift: 18,
+      smoothingScale: 0.86,
+      maxDepth: 2,
+      maxNodes: 46,
+    };
+  }
+
+  resolveMagnetWeight(depth, node, dragProfile) {
+    let weight = depth === 1 ? 0.34 : depth === 2 ? 0.17 : 0.09;
+    if (node.is_seed) {
+      weight *= 0.72;
+    }
+    if (node.shared_seed_count >= 2) {
+      weight *= 1.08;
+    }
+
+    weight *= dragProfile.couplingScale;
+
+    if (dragProfile.kind !== "seed" && node.is_seed) {
+      weight *= 0.58;
+    }
+
+    return weight;
+  }
+
+  resolveMagnetSlack(depth, node, dragProfile) {
+    let slack = depth === 1 ? 26 : depth === 2 ? 56 : 88;
+    if (node.is_seed) {
+      slack += 10;
+    }
+    slack += dragProfile.slackShift;
+    if (dragProfile.kind !== "seed" && node.is_seed) {
+      slack += 12;
+    }
+    return Math.max(10, slack);
+  }
+
+  resolveMagnetSmoothing(depth, dragProfile) {
+    let smoothing = depth === 1 ? 0.34 : depth === 2 ? 0.24 : 0.18;
+    smoothing *= dragProfile.smoothingScale;
+    return clamp(smoothing, 0.12, 0.46);
+  }
+
+  applyDraggedNodePosition(layoutNode, nextX, nextY, dragState) {
+    layoutNode.startX = nextX;
+    layoutNode.startY = nextY;
+    layoutNode.targetX = nextX;
+    layoutNode.targetY = nextY;
+
+    const dragDeltaX = nextX - dragState.originX;
+    const dragDeltaY = nextY - dragState.originY;
+    const dragDistance = Math.hypot(dragDeltaX, dragDeltaY);
+
+    dragState.influenceMap.forEach((influence, nodeId) => {
+      const affectedLayout = this.nodeLayoutById.get(nodeId);
+      const origin = dragState.originPositions.get(nodeId);
+      if (!affectedLayout || !origin) {
+        return;
+      }
+
+      const activation = smoothstep(
+        influence.slack,
+        influence.slack + 130 + influence.depth * 32,
+        dragDistance,
+      );
+      const desiredX = origin.x + (dragDeltaX * influence.weight * activation);
+      const desiredY = origin.y + (dragDeltaY * influence.weight * activation);
+
+      affectedLayout.targetX += (desiredX - affectedLayout.targetX) * influence.smoothing;
+      affectedLayout.targetY += (desiredY - affectedLayout.targetY) * influence.smoothing;
+      affectedLayout.startX = affectedLayout.targetX;
+      affectedLayout.startY = affectedLayout.targetY;
+    });
+  }
+
+  commitDraggedNodeState(dragState) {
+    dragState.originPositions.forEach((_, nodeId) => {
+      const layoutNode = this.nodeLayoutById.get(nodeId);
+      if (!layoutNode) {
+        return;
+      }
+
+      layoutNode.startX = layoutNode.targetX;
+      layoutNode.startY = layoutNode.targetY;
+      layoutNode.homeX = layoutNode.targetX;
+      layoutNode.homeY = layoutNode.targetY;
+    });
   }
 }
 
@@ -1584,6 +1964,68 @@ function getLayoutBounds(nodeLayout) {
   });
 
   return { minX, minY, maxX, maxY };
+}
+
+function createScreenBounds(width, height, padding) {
+  return {
+    minX: -padding,
+    minY: -padding,
+    maxX: width + padding,
+    maxY: height + padding,
+  };
+}
+
+function isCircleVisible(item, bounds) {
+  return (
+    item.x + item.radius >= bounds.minX
+    && item.x - item.radius <= bounds.maxX
+    && item.y + item.radius >= bounds.minY
+    && item.y - item.radius <= bounds.maxY
+  );
+}
+
+function createAvatarSprite(image, size) {
+  const surface = createCanvasSurface(size, size);
+  const ctx = surface.getContext("2d");
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, Math.max(1, size / 2), 0, Math.PI * 2);
+  ctx.clip();
+  ctx.imageSmoothingEnabled = true;
+  if ("imageSmoothingQuality" in ctx) {
+    ctx.imageSmoothingQuality = size >= 48 ? "high" : "medium";
+  }
+  ctx.drawImage(image, 0, 0, size, size);
+  ctx.restore();
+
+  return surface;
+}
+
+function createCanvasSurface(width, height) {
+  if (typeof OffscreenCanvas !== "undefined") {
+    return new OffscreenCanvas(width, height);
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+
+function isSegmentVisible(source, target, bounds) {
+  const minX = Math.min(source.x, target.x);
+  const minY = Math.min(source.y, target.y);
+  const maxX = Math.max(source.x, target.x);
+  const maxY = Math.max(source.y, target.y);
+
+  return (
+    maxX >= bounds.minX
+    && minX <= bounds.maxX
+    && maxY >= bounds.minY
+    && minY <= bounds.maxY
+  );
 }
 
 function buildSpatialGrid(items, cellSize) {
@@ -1656,6 +2098,15 @@ function clamp(value, min, max) {
 
 function lerp(start, end, progress) {
   return start + (end - start) * progress;
+}
+
+function smoothstep(start, end, value) {
+  if (end <= start) {
+    return value >= end ? 1 : 0;
+  }
+
+  const progress = clamp((value - start) / (end - start), 0, 1);
+  return progress * progress * (3 - (2 * progress));
 }
 
 function easeOutCubic(progress) {
