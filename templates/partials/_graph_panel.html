@@ -1,10 +1,13 @@
 <section class="graph-panel">
-  <div class="graph-stage">
+  <div id="graph-stage" class="graph-stage">
     <div class="graph-toolbar">
       <div id="focus-state" class="focus-state" hidden></div>
       <div class="graph-toolbar-actions">
         <span class="graph-hint">Потяните граф мышью, колесо прокрутки меняет масштаб</span>
         <span id="zoom-level" class="zoom-level" hidden>100%</span>
+        <button type="button" id="fullscreen-button" class="button ghost subtle">
+          Во весь экран
+        </button>
         <button type="button" id="highlight-all-button" class="button ghost subtle" hidden>
           Подсветить все связи
         </button>

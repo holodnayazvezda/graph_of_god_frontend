@@ -13,14 +13,14 @@
 .overlap-card {
   padding: 16px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(20, 33, 43, 0.08);
+  background: var(--surface-soft);
+  border: 1px solid var(--panel-border);
 }
 
 .seed-card.is-active,
 .overlap-card.is-active {
-  border-color: rgba(31, 122, 111, 0.34);
-  box-shadow: inset 0 0 0 1px rgba(31, 122, 111, 0.12);
+  border-color: var(--card-active-border);
+  box-shadow: var(--card-active-shadow);
 }
 
 .seed-card-head,
@@ -100,7 +100,8 @@
 .preview-chip {
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(20, 33, 43, 0.06);
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
   font-size: 0.8rem;
   color: var(--ink-soft);
 }

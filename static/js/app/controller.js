@@ -2,6 +2,13 @@ import { createDomRefs, readPageConfig } from "./dom.js";
 import { buildIntersectionGroups } from "./intersections.js";
 import { renderOverlaps, renderSeedProfiles, updateActiveCards } from "./panels.js";
 import { SocialGraphApiClient } from "./social-graph-api.js";
+import {
+  applyTheme,
+  getNextTheme,
+  getThemeToggleLabel,
+  persistTheme,
+  resolveInitialTheme,
+} from "./theme.js";
 import { GraphRenderer } from "../graph/renderer.js";
 
 const ALL_SHARED_FOCUS_KEY = "shared:all";
@@ -9,10 +16,12 @@ const ALL_SHARED_FOCUS_KEY = "shared:all";
 export class GraphOfGodApp {
   constructor(documentRef) {
     this.document = documentRef;
+    this.window = documentRef.defaultView;
     this.dom = createDomRefs(documentRef);
     this.config = readPageConfig(this.dom.body);
     this.api = new SocialGraphApiClient();
     this.renderer = new GraphRenderer(this.dom.canvas, this.dom.tooltip);
+    this.currentTheme = resolveInitialTheme(this.window, this.dom.rootElement);
     this.state = {
       pollHandle: null,
       latestJobId: null,
@@ -24,18 +33,25 @@ export class GraphOfGodApp {
   }
 
   boot() {
+    this.setTheme(this.currentTheme, { persist: false });
     this.addProfileRow("https://vk.com/durov");
     this.addProfileRow("");
 
     this.dom.addProfileButton.addEventListener("click", () => this.handleAddProfile());
+    this.dom.fullscreenButton.addEventListener("click", () => this.toggleFullscreen());
+    this.dom.themeToggleButton.addEventListener("click", () => this.toggleTheme());
     this.dom.highlightAllButton.addEventListener("click", () => this.toggleAllSharedFocus());
     this.dom.resetViewButton.addEventListener("click", () => this.renderer.resetView());
     this.dom.form.addEventListener("submit", (event) => this.onSubmit(event));
     window.addEventListener("resize", () => this.renderer.handleResize());
+    this.document.addEventListener("fullscreenchange", () => this.handleFullscreenChange());
     this.renderer.setViewportListener((viewportState) => this.updateViewportUi(viewportState));
+    this.renderer.setNodeActivateListener((node) => this.openNodeProfile(node));
 
     this.updateProfileControls();
     this.updateFocusUi();
+    this.updateFullscreenUi();
+    this.updateThemeUi();
   }
 
   handleAddProfile() {
@@ -359,5 +375,70 @@ export class GraphOfGodApp {
     this.dom.highlightAllButton.hidden = !hasData;
     this.dom.highlightAllButton.disabled = !hasData || !hasSharedNodes;
     this.dom.highlightAllButton.textContent = isActive ? "Снять подсветку" : "Подсветить все связи";
+  }
+
+  openNodeProfile(node) {
+    if (!node?.profile_url) {
+      return;
+    }
+
+    this.window.open(node.profile_url, "_blank", "noopener,noreferrer");
+  }
+
+  toggleTheme() {
+    this.setTheme(getNextTheme(this.currentTheme));
+  }
+
+  setTheme(theme, options = {}) {
+    const { persist = true } = options;
+    this.currentTheme = theme;
+    applyTheme(this.dom.rootElement, theme);
+    if (persist) {
+      persistTheme(theme);
+    }
+    this.updateThemeUi();
+    this.renderer.requestRender();
+  }
+
+  updateThemeUi() {
+    const isDark = this.currentTheme === "dark";
+    this.dom.themeToggleButton.textContent = getThemeToggleLabel(this.currentTheme);
+    this.dom.themeToggleButton.setAttribute("aria-pressed", String(isDark));
+    this.dom.themeToggleButton.setAttribute("title", this.dom.themeToggleButton.textContent);
+  }
+
+  async toggleFullscreen() {
+    if (!this.document.fullscreenEnabled) {
+      return;
+    }
+
+    try {
+      if (this.isGraphFullscreen()) {
+        await this.document.exitFullscreen();
+        return;
+      }
+
+      await this.dom.graphStage.requestFullscreen();
+    } catch (error) {
+      this.setStatus("Ошибка fullscreen", error.message || "Не удалось переключить полноэкранный режим.", "error");
+    }
+  }
+
+  handleFullscreenChange() {
+    this.updateFullscreenUi();
+    this.renderer.handleResize();
+  }
+
+  updateFullscreenUi() {
+    const isSupported = Boolean(this.document.fullscreenEnabled);
+    const isActive = this.isGraphFullscreen();
+
+    this.dom.fullscreenButton.hidden = !isSupported;
+    this.dom.fullscreenButton.textContent = isActive ? "Выйти из full screen" : "Во весь экран";
+    this.dom.graphStage.classList.toggle("is-fullscreen", isActive);
+  }
+
+  isGraphFullscreen() {
+    return this.document.fullscreenElement === this.dom.graphStage;
   }
 }

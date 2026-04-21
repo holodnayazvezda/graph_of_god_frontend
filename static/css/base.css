@@ -1,19 +1,132 @@
 :root {
-  --bg: #f5efe2;
-  --bg-muted: #e6ddcd;
-  --surface: rgba(255, 252, 245, 0.82);
-  --surface-strong: #fffaf0;
-  --ink: #14212b;
-  --ink-soft: #4a5c66;
-  --line: rgba(20, 33, 43, 0.1);
-  --seed: #f46b45;
-  --shared: #1f7a6f;
-  --single: #5f6f86;
-  --accent: #d6a44d;
-  --shadow: 0 22px 60px rgba(33, 39, 46, 0.12);
+  color-scheme: light;
+  --bg: #eaf4ff;
+  --bg-muted: #d7e8ff;
+  --bg-gradient-start: #eff7ff;
+  --bg-gradient-end: #dcecff;
+  --page-glow-left: rgba(39, 135, 245, 0.18);
+  --page-glow-right: rgba(42, 171, 238, 0.16);
+  --surface: rgba(248, 252, 255, 0.84);
+  --surface-strong: #fcfeff;
+  --surface-muted: rgba(255, 255, 255, 0.72);
+  --surface-soft: rgba(255, 255, 255, 0.64);
+  --ink: #0f2842;
+  --ink-soft: #5a7592;
+  --line: rgba(33, 92, 160, 0.14);
+  --panel-border: rgba(58, 123, 198, 0.16);
+  --seed: #2787f5;
+  --seed-strong: #1f6fe0;
+  --shared: #2aabee;
+  --single: #7597bf;
+  --accent: #5e9fff;
+  --warning: #7fb5ff;
+  --success: #34b0eb;
+  --error: #df7888;
+  --shadow: 0 24px 60px rgba(15, 40, 66, 0.12);
+  --ghost-bg: rgba(39, 135, 245, 0.1);
+  --chip-bg: rgba(39, 135, 245, 0.08);
+  --chip-border: rgba(39, 135, 245, 0.1);
+  --avatar-border: rgba(255, 255, 255, 0.92);
+  --flag-seed-bg: rgba(39, 135, 245, 0.14);
+  --flag-shared-bg: rgba(42, 171, 238, 0.14);
+  --flag-warn-bg: rgba(127, 181, 255, 0.2);
+  --flag-error-bg: rgba(223, 120, 136, 0.18);
+  --status-loading-border: rgba(94, 159, 255, 0.34);
+  --status-success-border: rgba(42, 171, 238, 0.34);
+  --status-error-border: rgba(223, 120, 136, 0.34);
+  --card-active-border: rgba(42, 171, 238, 0.42);
+  --card-active-shadow: inset 0 0 0 1px rgba(42, 171, 238, 0.18);
+  --focus-state-bg: rgba(15, 40, 66, 0.86);
+  --toolbar-pill-bg: rgba(255, 255, 255, 0.86);
+  --toolbar-pill-border: rgba(39, 135, 245, 0.12);
+  --tooltip-bg: rgba(9, 28, 48, 0.94);
+  --tooltip-shadow: 0 12px 30px rgba(10, 26, 44, 0.26);
+  --graph-stage-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(225, 239, 255, 0.96) 100%);
+  --graph-stage-border: rgba(39, 135, 245, 0.1);
+  --graph-backdrop-start: rgba(39, 135, 245, 0.08);
+  --graph-backdrop-end: rgba(42, 171, 238, 0.06);
+  --graph-grid: rgba(39, 135, 245, 0.05);
+  --graph-edge-shared: rgba(42, 171, 238, 0.3);
+  --graph-edge-single: rgba(15, 40, 66, 0.12);
+  --graph-node-fill: rgba(255, 255, 255, 0.97);
+  --graph-node-seed: #2787f5;
+  --graph-node-shared: #2aabee;
+  --graph-node-single: #7597bf;
+  --graph-shadow-shared: rgba(42, 171, 238, 0.22);
+  --graph-shadow-single: rgba(16, 42, 67, 0.12);
+  --graph-focus-ring: rgba(94, 159, 255, 0.55);
+  --graph-initials: rgba(255, 255, 255, 0.97);
+  --graph-label: rgba(15, 40, 66, 0.9);
+  --theme-toggle-bg: rgba(248, 252, 255, 0.88);
+  --theme-toggle-border: rgba(39, 135, 245, 0.14);
+  --theme-toggle-shadow: 0 16px 38px rgba(15, 40, 66, 0.18);
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c1626;
+  --bg-muted: #132a45;
+  --bg-gradient-start: #091321;
+  --bg-gradient-end: #10223a;
+  --page-glow-left: rgba(39, 135, 245, 0.22);
+  --page-glow-right: rgba(42, 171, 238, 0.18);
+  --surface: rgba(13, 29, 49, 0.82);
+  --surface-strong: #132d49;
+  --surface-muted: rgba(19, 45, 73, 0.72);
+  --surface-soft: rgba(17, 39, 64, 0.86);
+  --ink: #eef6ff;
+  --ink-soft: #98b8d8;
+  --line: rgba(128, 182, 255, 0.14);
+  --panel-border: rgba(126, 188, 255, 0.12);
+  --seed: #63a5ff;
+  --seed-strong: #3a8eff;
+  --shared: #63c9ff;
+  --single: #95b5d4;
+  --accent: #8ebeff;
+  --warning: #7bb7ff;
+  --success: #57c0ff;
+  --error: #ff8ea0;
+  --shadow: 0 28px 72px rgba(0, 0, 0, 0.3);
+  --ghost-bg: rgba(99, 165, 255, 0.14);
+  --chip-bg: rgba(99, 165, 255, 0.12);
+  --chip-border: rgba(126, 188, 255, 0.12);
+  --avatar-border: rgba(255, 255, 255, 0.12);
+  --flag-seed-bg: rgba(99, 165, 255, 0.18);
+  --flag-shared-bg: rgba(99, 201, 255, 0.18);
+  --flag-warn-bg: rgba(123, 183, 255, 0.22);
+  --flag-error-bg: rgba(255, 142, 160, 0.22);
+  --status-loading-border: rgba(126, 188, 255, 0.36);
+  --status-success-border: rgba(99, 201, 255, 0.36);
+  --status-error-border: rgba(255, 142, 160, 0.38);
+  --card-active-border: rgba(99, 201, 255, 0.42);
+  --card-active-shadow: inset 0 0 0 1px rgba(99, 201, 255, 0.18);
+  --focus-state-bg: rgba(5, 16, 29, 0.88);
+  --toolbar-pill-bg: rgba(16, 36, 58, 0.88);
+  --toolbar-pill-border: rgba(126, 188, 255, 0.12);
+  --tooltip-bg: rgba(3, 12, 23, 0.96);
+  --tooltip-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+  --graph-stage-bg: linear-gradient(180deg, rgba(11, 24, 40, 0.96) 0%, rgba(17, 39, 64, 1) 100%);
+  --graph-stage-border: rgba(126, 188, 255, 0.12);
+  --graph-backdrop-start: rgba(39, 135, 245, 0.12);
+  --graph-backdrop-end: rgba(42, 171, 238, 0.08);
+  --graph-grid: rgba(126, 188, 255, 0.06);
+  --graph-edge-shared: rgba(99, 201, 255, 0.34);
+  --graph-edge-single: rgba(198, 224, 255, 0.12);
+  --graph-node-fill: rgba(19, 45, 73, 0.96);
+  --graph-node-seed: #63a5ff;
+  --graph-node-shared: #63c9ff;
+  --graph-node-single: #95b5d4;
+  --graph-shadow-shared: rgba(99, 201, 255, 0.24);
+  --graph-shadow-single: rgba(0, 0, 0, 0.18);
+  --graph-focus-ring: rgba(142, 190, 255, 0.52);
+  --graph-initials: rgba(241, 248, 255, 0.96);
+  --graph-label: rgba(238, 246, 255, 0.92);
+  --theme-toggle-bg: rgba(14, 32, 52, 0.88);
+  --theme-toggle-border: rgba(126, 188, 255, 0.14);
+  --theme-toggle-shadow: 0 16px 38px rgba(0, 0, 0, 0.32);
 }
 
 * {
@@ -26,9 +139,9 @@ body {
   font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(244, 107, 69, 0.15), transparent 26%),
-    radial-gradient(circle at top right, rgba(31, 122, 111, 0.14), transparent 22%),
-    linear-gradient(180deg, #f8f2e6 0%, #efe6d4 100%);
+    radial-gradient(circle at top left, var(--page-glow-left), transparent 28%),
+    radial-gradient(circle at top right, var(--page-glow-right), transparent 24%),
+    linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
 }
 
 .hero-copy,
@@ -38,7 +151,7 @@ body {
 .insight-card {
   background: var(--surface);
   backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--panel-border);
   box-shadow: var(--shadow);
   border-radius: var(--radius-xl);
 }
@@ -91,13 +204,14 @@ body {
 }
 
 .button.primary {
-  background: linear-gradient(135deg, var(--seed), #ff966c);
+  background: linear-gradient(135deg, var(--seed), var(--seed-strong));
   color: white;
 }
 
 .button.ghost {
-  background: rgba(20, 33, 43, 0.08);
+  background: var(--ghost-bg);
   color: var(--ink);
+  border: 1px solid var(--chip-border);
 }
 
 .button.subtle {
@@ -116,9 +230,10 @@ body {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(20, 33, 43, 0.08);
+  background: var(--chip-bg);
   color: var(--ink);
   font-size: 1rem;
+  border: 1px solid var(--chip-border);
 }
 
 .muted {
@@ -131,23 +246,23 @@ body {
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 0.78rem;
-  background: rgba(20, 33, 43, 0.08);
+  background: var(--chip-bg);
 }
 
 .flag.seed {
-  background: rgba(244, 107, 69, 0.14);
+  background: var(--flag-seed-bg);
 }
 
 .flag.shared {
-  background: rgba(31, 122, 111, 0.14);
+  background: var(--flag-shared-bg);
 }
 
 .flag.warn {
-  background: rgba(214, 164, 77, 0.2);
+  background: var(--flag-warn-bg);
 }
 
 .flag.error {
-  background: rgba(244, 107, 69, 0.18);
+  background: var(--flag-error-bg);
 }
 
 .seed-avatar {
@@ -155,7 +270,39 @@ body {
   height: 52px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.88);
-  background: rgba(20, 33, 43, 0.08);
+  border: 2px solid var(--avatar-border);
+  background: var(--chip-bg);
   flex: none;
+}
+
+.theme-toggle-button {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 30;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--theme-toggle-border);
+  background: var(--theme-toggle-bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--theme-toggle-shadow);
+  backdrop-filter: blur(18px);
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.theme-toggle-button:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 720px) {
+  .theme-toggle-button {
+    top: 12px;
+    right: 12px;
+    padding: 10px 14px;
+    font-size: 0.84rem;
+  }
 }

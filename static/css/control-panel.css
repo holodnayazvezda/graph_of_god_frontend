@@ -24,8 +24,8 @@
   align-items: center;
   padding: 12px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(20, 33, 43, 0.08);
+  background: var(--surface-soft);
+  border: 1px solid var(--panel-border);
 }
 
 .profile-index {
@@ -34,7 +34,7 @@
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
-  background: rgba(20, 33, 43, 0.06);
+  background: var(--chip-bg);
   font-size: 0.84rem;
   font-weight: 700;
 }
@@ -49,7 +49,7 @@
 }
 
 .profile-input::placeholder {
-  color: rgba(74, 92, 102, 0.8);
+  color: var(--ink-soft);
 }
 
 .form-actions {
@@ -66,8 +66,8 @@
 .legend-panel {
   padding: 16px 18px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.58);
-  border: 1px solid rgba(20, 33, 43, 0.08);
+  background: var(--surface-muted);
+  border: 1px solid var(--panel-border);
 }
 
 .status-kicker {
@@ -84,15 +84,15 @@
 }
 
 .status-panel.is-loading {
-  border-color: rgba(214, 164, 77, 0.35);
+  border-color: var(--status-loading-border);
 }
 
 .status-panel.is-success {
-  border-color: rgba(31, 122, 111, 0.28);
+  border-color: var(--status-success-border);
 }
 
 .status-panel.is-error {
-  border-color: rgba(244, 107, 69, 0.35);
+  border-color: var(--status-error-border);
 }
 
 .legend-list {
@@ -108,7 +108,8 @@
   padding: 8px 12px;
   border-radius: 999px;
   font-size: 0.87rem;
-  background: rgba(20, 33, 43, 0.06);
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
 }
 
 .legend-chip::before {

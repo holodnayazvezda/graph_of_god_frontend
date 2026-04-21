@@ -34,6 +34,7 @@ export class GraphRenderer {
     this.avatarSpriteCache = new Map();
     this.viewport = new GraphViewport();
     this.viewportListener = null;
+    this.nodeActivateListener = null;
     this.dragState = null;
     this.layoutDirty = false;
     this.animationFrameId = null;
@@ -63,6 +64,10 @@ export class GraphRenderer {
     this.notifyViewportChange();
   }
 
+  setNodeActivateListener(listener) {
+    this.nodeActivateListener = listener;
+  }
+
   setData(result) {
     this.result = result;
     this.focus = null;
@@ -76,7 +81,7 @@ export class GraphRenderer {
     this.connectionIndex = this.buildConnectionIndex(result.edges);
     this.preloadAvatars(result.nodes);
     this.canvas.classList.add("is-interactive");
-    this.canvas.classList.remove("is-panning");
+    this.canvas.classList.remove("is-panning", "is-hover-link");
     this.fitViewToLayout();
     this.animationStart = performance.now();
     if (this.animationFrameId) {
@@ -142,7 +147,7 @@ export class GraphRenderer {
     this.avatarSpriteCache.clear();
     this.viewport.reset();
     this.layoutDirty = false;
-    this.canvas.classList.remove("is-interactive", "is-panning");
+    this.canvas.classList.remove("is-interactive", "is-panning", "is-hover-link");
     this.resizeCanvas();
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.tooltip.hidden = true;
@@ -308,9 +313,10 @@ export class GraphRenderer {
 
     const nodeBounds = createScreenBounds(width, height, this.renderProfile?.nodeCullPadding || 108);
     const edgeBounds = createScreenBounds(width, height, this.renderProfile?.edgeCullPadding || 148);
-    this.drawBackdrop(width, height);
-    this.drawEdges(positions, edgeBounds);
-    this.drawNodes(positions, nodeBounds);
+    const palette = this.resolvePalette();
+    this.drawBackdrop(width, height, palette);
+    this.drawEdges(positions, edgeBounds, palette);
+    this.drawNodes(positions, nodeBounds, palette);
     this.currentPositions = positions;
   }
 
@@ -329,18 +335,18 @@ export class GraphRenderer {
     this.animationFrameId = null;
   }
 
-  drawBackdrop(width, height) {
+  drawBackdrop(width, height, palette) {
     const gradient = this.ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, "rgba(244, 107, 69, 0.06)");
-    gradient.addColorStop(1, "rgba(31, 122, 111, 0.05)");
+    gradient.addColorStop(0, palette.backdropStart);
+    gradient.addColorStop(1, palette.backdropEnd);
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, width, height);
     if (this.renderProfile?.showGrid) {
-      this.drawGrid(width, height);
+      this.drawGrid(width, height, palette);
     }
   }
 
-  drawGrid(width, height) {
+  drawGrid(width, height, palette) {
     const minWorld = this.viewport.screenToWorld(0, 0);
     const maxWorld = this.viewport.screenToWorld(width, height);
     const baseStep = 140;
@@ -348,7 +354,7 @@ export class GraphRenderer {
     const step = baseStep * scaleFactor;
 
     this.ctx.save();
-    this.ctx.strokeStyle = "rgba(20, 33, 43, 0.035)";
+    this.ctx.strokeStyle = palette.grid;
     this.ctx.lineWidth = 1;
 
     for (let x = Math.floor(minWorld.x / step) * step; x <= maxWorld.x + step; x += step) {
@@ -370,7 +376,7 @@ export class GraphRenderer {
     this.ctx.restore();
   }
 
-  drawEdges(positions, visibleBounds) {
+  drawEdges(positions, visibleBounds, palette) {
     const focusNodeIds = this.focus?.nodeIds || null;
 
     this.ctx.save();
@@ -384,8 +390,8 @@ export class GraphRenderer {
       this.ctx.globalAlpha = isActive ? 1 : 0.08;
       this.ctx.lineWidth = clamp((edge.connected_seed_indices.length > 1 ? 1.8 : 1.15) * this.viewport.scale, 0.6, 2.8);
       this.ctx.strokeStyle = edge.connected_seed_indices.length > 1
-        ? "rgba(31, 122, 111, 0.26)"
-        : "rgba(20, 33, 43, 0.12)";
+        ? palette.edgeShared
+        : palette.edgeSingle;
 
       this.ctx.beginPath();
       this.ctx.moveTo(source.x, source.y);
@@ -395,7 +401,7 @@ export class GraphRenderer {
     this.ctx.restore();
   }
 
-  drawNodes(positions, visibleBounds) {
+  drawNodes(positions, visibleBounds, palette) {
     const visibleItems = [...positions.values()].filter((item) => isCircleVisible(item, visibleBounds));
     const ordered = visibleItems.sort((left, right) => {
       if (left.node.is_seed !== right.node.is_seed) {
@@ -429,37 +435,37 @@ export class GraphRenderer {
 
     for (const item of ordered) {
       const isActive = !this.focus || this.focus.nodeIds.has(item.node.node_id);
-      this.drawNode(item, isActive);
+      this.drawNode(item, isActive, palette);
     }
 
     for (const item of ordered) {
       if (!labeledIds.has(item.node.node_id)) continue;
       if (this.focus && !this.focus.nodeIds.has(item.node.node_id)) continue;
-      this.drawLabel(item);
+      this.drawLabel(item, palette);
     }
   }
 
-  drawNode(item, isActive) {
+  drawNode(item, isActive, palette) {
     const ringColor = item.node.is_seed
-      ? "#f46b45"
+      ? palette.nodeSeed
       : item.node.shared_seed_count >= 2
-        ? "#1f7a6f"
-        : "#5f6f86";
+        ? palette.nodeShared
+        : palette.nodeSingle;
 
     this.ctx.save();
     this.ctx.globalAlpha = isActive ? 1 : 0.14;
     if (this.renderProfile?.showShadows && isActive) {
       this.ctx.shadowBlur = clamp(item.radius * 0.65, 0, 18);
       this.ctx.shadowColor = item.node.shared_seed_count >= 2
-        ? "rgba(31, 122, 111, 0.18)"
-        : "rgba(20, 33, 43, 0.1)";
+        ? palette.shadowShared
+        : palette.shadowSingle;
     } else {
       this.ctx.shadowBlur = 0;
     }
 
     this.ctx.beginPath();
     this.ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
-    this.ctx.fillStyle = "rgba(255, 255, 255, 0.96)";
+    this.ctx.fillStyle = palette.nodeFill;
     this.ctx.fill();
 
     const hasAvatar = this.drawAvatar(item);
@@ -469,7 +475,7 @@ export class GraphRenderer {
       this.ctx.fillStyle = ringColor;
       this.ctx.fill();
       if (item.radius >= 9) {
-        this.drawInitials(item);
+        this.drawInitials(item, palette);
       }
     }
 
@@ -483,7 +489,7 @@ export class GraphRenderer {
       this.ctx.beginPath();
       this.ctx.arc(item.x, item.y, item.radius + clamp(4.5 * this.viewport.scale, 2.6, 6.2), 0, Math.PI * 2);
       this.ctx.lineWidth = clamp(1.3 * this.viewport.scale, 0.8, 2);
-      this.ctx.strokeStyle = "rgba(214, 164, 77, 0.55)";
+      this.ctx.strokeStyle = palette.focusRing;
       this.ctx.stroke();
     }
 
@@ -540,10 +546,10 @@ export class GraphRenderer {
     return buckets[buckets.length - 1];
   }
 
-  drawInitials(item) {
+  drawInitials(item, palette) {
     const initials = buildInitials(item.node.full_name || item.node.node_id);
     this.ctx.save();
-    this.ctx.fillStyle = "rgba(255, 255, 255, 0.96)";
+    this.ctx.fillStyle = palette.initials;
     this.ctx.font = `${Math.max(8, Math.floor(item.radius * 0.9))}px "Avenir Next", sans-serif`;
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
@@ -551,13 +557,13 @@ export class GraphRenderer {
     this.ctx.restore();
   }
 
-  drawLabel(item) {
+  drawLabel(item, palette) {
     const label = trimLabel(item.node.full_name || item.node.node_id, item.node.is_seed ? 24 : 18);
     this.ctx.save();
     this.ctx.font = item.node.is_seed
       ? `${clamp(12 * this.viewport.scale, 10, 18)}px 'Avenir Next', sans-serif`
       : `${clamp(11 * this.viewport.scale, 9, 15)}px 'Avenir Next', sans-serif`;
-    this.ctx.fillStyle = "rgba(20, 33, 43, 0.88)";
+    this.ctx.fillStyle = palette.label;
     this.ctx.textAlign = "center";
     this.ctx.fillText(label, item.x, item.y - item.radius - clamp(10 * this.viewport.scale, 8, 16));
     this.ctx.restore();
@@ -602,7 +608,13 @@ export class GraphRenderer {
 
     if (hitNode) {
       const pointerWorld = this.viewport.screenToWorld(pointerX, pointerY);
-      this.dragState = this.createNodeDragState(hitNode, pointerWorld, event.pointerId);
+      this.dragState = this.createNodeDragState(
+        hitNode,
+        pointerWorld,
+        event.pointerId,
+        event.clientX,
+        event.clientY,
+      );
       this.canvas.classList.add("is-panning");
       this.tooltip.hidden = true;
       this.canvas.setPointerCapture(event.pointerId);
@@ -624,6 +636,15 @@ export class GraphRenderer {
   onPointerMove(event) {
     if (this.dragState && event.pointerId === this.dragState.pointerId) {
       if (this.dragState.mode === "node") {
+        const movedEnough = Math.hypot(
+          event.clientX - this.dragState.startClientX,
+          event.clientY - this.dragState.startClientY,
+        ) >= 3;
+        if (!movedEnough) {
+          return;
+        }
+
+        this.dragState.hasMoved = true;
         const rect = this.canvas.getBoundingClientRect();
         const pointerX = event.clientX - rect.left;
         const pointerY = event.clientY - rect.top;
@@ -680,8 +701,10 @@ export class GraphRenderer {
     this.dragState = null;
     this.canvas.classList.remove("is-panning");
 
-    if (finishedDragState.mode === "node") {
+    if (finishedDragState.mode === "node" && finishedDragState.hasMoved) {
       this.commitDraggedNodeState(finishedDragState);
+    } else if (finishedDragState.mode === "node") {
+      this.activateNode(finishedDragState.nodeId);
     }
 
     if (!wasPanning) {
@@ -719,6 +742,7 @@ export class GraphRenderer {
 
     if (!hovered) {
       this.hoveredNodeId = null;
+      this.canvas.classList.remove("is-hover-link");
       this.tooltip.hidden = true;
       return;
     }
@@ -729,6 +753,7 @@ export class GraphRenderer {
         ? `Общий друг профилей ${hovered.node.connected_seed_indices.map((index) => `#${index + 1}`).join(", ")}`
         : `Друг профиля #${(hovered.node.connected_seed_indices[0] || 0) + 1}`;
 
+    this.canvas.classList.toggle("is-hover-link", Boolean(hovered.node.profile_url));
     if (this.hoveredNodeId !== hovered.node.node_id) {
       this.tooltip.innerHTML = `
         <strong>${escapeTooltip(hovered.node.full_name)}</strong><br>
@@ -759,7 +784,7 @@ export class GraphRenderer {
     return null;
   }
 
-  createNodeDragState(hitNode, pointerWorld, pointerId) {
+  createNodeDragState(hitNode, pointerWorld, pointerId, startClientX, startClientY) {
     const dragProfile = this.resolveDragProfile(hitNode.node);
     const influenceMap = this.collectDragInfluences(hitNode.node.node_id, dragProfile);
     const originPositions = new Map();
@@ -785,11 +810,43 @@ export class GraphRenderer {
       nodeId: hitNode.node.node_id,
       offsetX: hitNode.worldX - pointerWorld.x,
       offsetY: hitNode.worldY - pointerWorld.y,
+      startClientX,
+      startClientY,
       originX: hitNode.worldX,
       originY: hitNode.worldY,
       originPositions,
       influenceMap,
       dragProfile,
+      hasMoved: false,
+    };
+  }
+
+  activateNode(nodeId) {
+    const node = this.nodeLayoutById.get(nodeId)?.node;
+    if (!node || !this.nodeActivateListener) {
+      return;
+    }
+
+    this.nodeActivateListener(node);
+  }
+
+  resolvePalette() {
+    const styles = getComputedStyle(this.canvas);
+    return {
+      backdropStart: styles.getPropertyValue("--graph-backdrop-start").trim(),
+      backdropEnd: styles.getPropertyValue("--graph-backdrop-end").trim(),
+      grid: styles.getPropertyValue("--graph-grid").trim(),
+      edgeShared: styles.getPropertyValue("--graph-edge-shared").trim(),
+      edgeSingle: styles.getPropertyValue("--graph-edge-single").trim(),
+      nodeFill: styles.getPropertyValue("--graph-node-fill").trim(),
+      nodeSeed: styles.getPropertyValue("--graph-node-seed").trim(),
+      nodeShared: styles.getPropertyValue("--graph-node-shared").trim(),
+      nodeSingle: styles.getPropertyValue("--graph-node-single").trim(),
+      shadowShared: styles.getPropertyValue("--graph-shadow-shared").trim(),
+      shadowSingle: styles.getPropertyValue("--graph-shadow-single").trim(),
+      focusRing: styles.getPropertyValue("--graph-focus-ring").trim(),
+      initials: styles.getPropertyValue("--graph-initials").trim(),
+      label: styles.getPropertyValue("--graph-label").trim(),
     };
   }
 
