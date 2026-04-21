@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GraphOfGod Frontend</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  </head>
+  <body data-max-profiles="{{ max_profiles }}" data-poll-interval-ms="{{ poll_interval_ms }}">
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">GraphOfGod Frontend</p>
+          <h1>Граф социальных связей VK</h1>
+          <p class="hero-text">
+            Добавьте несколько профилей, дождитесь завершения фоновой задачи и посмотрите,
+            как их окружения накладываются друг на друга в одном графе.
+          </p>
+        </div>
+        <div class="hero-card">
+          <div class="metric">
+            <span class="metric-label">Seed-профили</span>
+            <strong id="seed-count">0</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Узлы</span>
+            <strong id="node-count">0</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Общие связи</span>
+            <strong id="shared-count">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <aside class="control-panel">
+          <div class="panel-head">
+            <h2>Профили VK</h2>
+            <p>До пяти профилей за один запуск. Можно добавлять и удалять строки прямо здесь.</p>
+          </div>
+
+          <form id="profiles-form" class="profile-form">
+            <div id="profiles-list" class="profiles-list"></div>
+
+            <div class="form-actions">
+              <button type="button" id="add-profile-button" class="button ghost">
+                Добавить профиль
+              </button>
+              <button type="submit" id="submit-button" class="button primary">
+                Построить граф
+              </button>
+            </div>
+          </form>
+
+          <section id="status-panel" class="status-panel">
+            <p class="status-kicker">Статус</p>
+            <h3 id="status-title">Ожидание запроса</h3>
+            <p id="status-text">
+              После запуска здесь появится состояние backend job и подробности по загрузке данных.
+            </p>
+          </section>
+
+          <section class="legend-panel">
+            <h3>Легенда</h3>
+            <div class="legend-list">
+              <span class="legend-chip seed">Seed-профиль</span>
+              <span class="legend-chip shared">Общий друг</span>
+              <span class="legend-chip single">Одиночная связь</span>
+            </div>
+          </section>
+        </aside>
+
+        <section class="graph-panel">
+          <div class="graph-stage">
+            <div class="graph-toolbar">
+              <div id="focus-state" class="focus-state" hidden></div>
+              <button type="button" id="clear-focus-button" class="button ghost subtle" hidden>
+                Показать весь граф
+              </button>
+            </div>
+            <div id="empty-state" class="empty-state">
+              <h2>Граф пока не построен</h2>
+              <p>
+                Введите хотя бы один профиль VK, запустите сбор и дождитесь, пока frontend
+                получит готовый social graph из backend.
+              </p>
+            </div>
+            <canvas id="graph-canvas"></canvas>
+            <div id="graph-tooltip" class="graph-tooltip" hidden></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="insights">
+        <article class="insight-card">
+          <div class="insight-head">
+            <h2>Seed-профили</h2>
+            <p>Кто был исходной точкой графа, сколько связей найдено и чей слой друзей можно изолировать на графе.</p>
+          </div>
+          <div id="seed-profiles-list" class="seed-profiles-list"></div>
+        </article>
+
+        <article class="insight-card">
+          <div class="insight-head">
+            <h2>Пересечения</h2>
+            <p>Общие друзья для любых комбинаций выбранных профилей: пары, тройки и более.</p>
+          </div>
+          <div id="overlaps-list" class="overlaps-list"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
+</html>
