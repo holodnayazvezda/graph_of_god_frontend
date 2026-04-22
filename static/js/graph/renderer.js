@@ -390,6 +390,7 @@ export class GraphRenderer {
     const edgeBounds = createScreenBounds(width, height, this.renderProfile?.edgeCullPadding || 148);
     const palette = this.resolvePalette();
     this.drawBackdrop(width, height, palette);
+    this.drawDepthBands(positions, palette);
     this.drawEdges(positions, edgeBounds, palette);
     this.drawNodes(positions, nodeBounds, palette);
     this.currentPositions = positions;
@@ -463,8 +464,10 @@ export class GraphRenderer {
 
       const isActive = !focusNodeIds || (focusNodeIds.has(edge.source_node_id) && focusNodeIds.has(edge.target_node_id));
       const isHighlightedEdge = edge.is_cycle_edge === true || edge.connected_seed_indices.length > 1;
-      this.ctx.globalAlpha = isActive ? 1 : 0.08;
-      this.ctx.lineWidth = clamp((isHighlightedEdge ? 1.8 : 1.15) * this.viewport.scale, 0.6, 2.8);
+      this.ctx.globalAlpha = isActive
+        ? (isHighlightedEdge ? 0.68 : 0.46)
+        : 0.06;
+      this.ctx.lineWidth = clamp((isHighlightedEdge ? 1.6 : 0.98) * this.viewport.scale, 0.55, 2.4);
       this.ctx.strokeStyle = isHighlightedEdge
         ? palette.edgeShared
         : palette.edgeSingle;
@@ -474,6 +477,61 @@ export class GraphRenderer {
       this.ctx.lineTo(target.x, target.y);
       this.ctx.stroke();
     }
+    this.ctx.restore();
+  }
+
+  drawDepthBands(positions, palette) {
+    if (!this.isDepthAwareSingleSeedResult()) {
+      return;
+    }
+
+    const rootNode = this.result.nodes.find((node) => node.is_seed);
+    const rootPosition = rootNode ? positions.get(rootNode.node_id) : null;
+    if (!rootPosition) {
+      return;
+    }
+
+    const innerDistances = [];
+    const outerDistances = [];
+
+    this.result.nodes.forEach((node) => {
+      if (node.is_seed || !Number.isFinite(node.distance_from_root)) {
+        return;
+      }
+
+      const position = positions.get(node.node_id);
+      if (!position) {
+        return;
+      }
+
+      const distance = Math.hypot(position.x - rootPosition.x, position.y - rootPosition.y);
+      if (node.distance_from_root === 1) {
+        innerDistances.push(distance);
+      } else if (node.distance_from_root > 1) {
+        outerDistances.push(distance);
+      }
+    });
+
+    if (!innerDistances.length || !outerDistances.length) {
+      return;
+    }
+
+    const innerEdge = Math.max(...innerDistances);
+    const outerEdge = Math.min(...outerDistances);
+    if (outerEdge - innerEdge < 22) {
+      return;
+    }
+
+    const guideRadius = (innerEdge + outerEdge) / 2;
+
+    this.ctx.save();
+    this.ctx.globalAlpha = 0.42;
+    this.ctx.strokeStyle = palette.grid;
+    this.ctx.lineWidth = 1;
+    this.ctx.setLineDash([8, 10]);
+    this.ctx.beginPath();
+    this.ctx.arc(rootPosition.x, rootPosition.y, guideRadius, 0, Math.PI * 2);
+    this.ctx.stroke();
     this.ctx.restore();
   }
 
@@ -670,6 +728,11 @@ export class GraphRenderer {
           ? [12, 16, 20, 24, 32, 44, 60]
           : DEFAULT_AVATAR_BUCKETS,
     };
+  }
+
+  isDepthAwareSingleSeedResult() {
+    return (this.result?.nodes?.filter((node) => node.is_seed).length || 0) === 1
+      && this.result?.nodes?.some((node) => !node.is_seed && Number.isFinite(node.distance_from_root));
   }
 
   onPointerDown(event) {

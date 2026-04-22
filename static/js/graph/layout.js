@@ -1,5 +1,4 @@
 import {
-  average,
   buildSpatialGrid,
   clamp,
   hashString,
@@ -34,12 +33,17 @@ export class GraphLayoutEngine {
     this.sharedRadius = Math.max(9, 11 * this.sizeFactor);
     this.singleRadius = Math.max(7, 8.8 * this.sizeFactor);
     this.seedPositionsByIndex = new Map();
+    this.usesLayeredSingleSeedLayout = this.resolveLayeredSingleSeedLayout();
     this.layout = [];
   }
 
   createLayout() {
     this.placeSeedNodes();
-    this.placeConnectionGroups();
+    if (this.usesLayeredSingleSeedLayout) {
+      this.placeLayeredSingleSeedConnections();
+    } else {
+      this.placeConnectionGroups();
+    }
     this.relaxConnectionNodes();
     return this.layout;
   }
@@ -99,6 +103,135 @@ export class GraphLayoutEngine {
   placeConnectionGroups() {
     const groups = this.collectGroups();
     groups.forEach((group, groupIndex) => this.placeGroup(group, groupIndex));
+  }
+
+  resolveLayeredSingleSeedLayout() {
+    return this.seedNodes.length === 1
+      && this.connectionNodes.length > 0
+      && this.connectionNodes.every((node) => Number.isFinite(node.distance_from_root));
+  }
+
+  placeLayeredSingleSeedConnections() {
+    const seedNode = this.seedNodes[0];
+    const seedPosition = this.seedPositionsByIndex.get(seedNode.seed_indices[0]) || {
+      x: this.centerX,
+      y: this.centerY,
+    };
+    const directFriends = this.connectionNodes.filter((node) => node.distance_from_root === 1);
+    const outerNodes = this.connectionNodes.filter((node) => node.distance_from_root > 1);
+
+    const innerBand = this.placeNodesInBand(directFriends, {
+      centerX: seedPosition.x,
+      centerY: seedPosition.y,
+      baseRadius: Math.max(106, 118 * this.sizeFactor),
+      ringGap: Math.max(34, 36 * this.sizeFactor),
+      bandPadding: Math.max(20, 24 * this.sizeFactor),
+      angleOffset: -Math.PI / 2,
+      verticalScale: 1,
+      radiusResolver: (node) => this.resolveNodeRadius(node),
+      sortValueResolver: (node) => hashString(node.node_id),
+    });
+
+    const outerBandBaseRadius = innerBand.outerRadius + Math.max(72, 84 * this.sizeFactor);
+    this.placeNodesInBand(outerNodes, {
+      centerX: seedPosition.x,
+      centerY: seedPosition.y,
+      baseRadius: outerBandBaseRadius,
+      ringGap: Math.max(32, 34 * this.sizeFactor),
+      bandPadding: Math.max(22, 26 * this.sizeFactor),
+      angleOffset: -Math.PI / 2,
+      verticalScale: 1,
+      radiusResolver: (node) => this.resolveNodeRadius(node),
+      sortValueResolver: (node) => {
+        const depthBucket = Math.max(0, Number(node.distance_from_root) - 2) * 100000;
+        const cyclePriority = node.is_cycle_member ? 0 : 50000;
+        return depthBucket + cyclePriority + hashString(node.node_id);
+      },
+    });
+  }
+
+  placeNodesInBand(nodes, options) {
+    if (!nodes.length) {
+      return {
+        outerRadius: options.baseRadius,
+      };
+    }
+
+    const orderedNodes = [...nodes]
+      .map((node) => ({
+        node,
+        sortValue: options.sortValueResolver ? options.sortValueResolver(node) : hashString(node.node_id),
+        stableHash: hashString(node.node_id),
+      }))
+      .sort((left, right) => {
+        if (left.sortValue !== right.sortValue) {
+          return left.sortValue - right.sortValue;
+        }
+        if (left.node.distance_from_root !== right.node.distance_from_root) {
+          return left.node.distance_from_root - right.node.distance_from_root;
+        }
+        return left.stableHash - right.stableHash;
+      });
+
+    const maxNodeRadius = orderedNodes.reduce(
+      (maxValue, item) => Math.max(maxValue, options.radiusResolver(item.node)),
+      this.singleRadius,
+    );
+    const nodeSpacing = Math.max(34, (maxNodeRadius * 2) + 14);
+    const minCapacity = 8;
+    const verticalScale = options.verticalScale ?? 1;
+    let cursor = 0;
+    let ringIndex = 0;
+    let outerRadius = options.baseRadius;
+
+    while (cursor < orderedNodes.length) {
+      const ringRadius = options.baseRadius + ringIndex * options.ringGap;
+      const circumference = Math.max(Math.PI * 2 * ringRadius, nodeSpacing * minCapacity);
+      const capacity = Math.max(minCapacity, Math.floor((circumference / nodeSpacing) * 0.94));
+      const ringNodes = orderedNodes.slice(cursor, cursor + capacity);
+      const ringAngleOffset = options.angleOffset
+        + ((ringIndex % 2 === 0) ? 0 : (Math.PI / Math.max(ringNodes.length, 1)));
+
+      ringNodes.forEach((entry, localIndex) => {
+        const nodeRadius = options.radiusResolver(entry.node);
+        const baseAngle = ringAngleOffset + (((localIndex + 0.5) / ringNodes.length) * Math.PI * 2);
+        const targetAngle = baseAngle;
+        const jitter = ((((hashString(`${entry.node.node_id}:${ringIndex}:band`) % 1000) / 1000) - 0.5) * 1.6);
+        const targetRadius = ringRadius + jitter;
+        const targetX = options.centerX + Math.cos(targetAngle) * targetRadius;
+        const targetY = options.centerY + Math.sin(targetAngle) * targetRadius * verticalScale;
+
+        this.layout.push(this.buildLayoutItem(entry.node, {
+          startX: options.centerX,
+          startY: options.centerY,
+          targetX,
+          targetY,
+          homeX: targetX,
+          homeY: targetY,
+          radius: nodeRadius,
+          fixed: false,
+          bandCenterX: options.centerX,
+          bandCenterY: options.centerY,
+          bandMinRadius: Math.max(40, ringRadius - (options.ringGap * 0.34)),
+          bandMaxRadius: ringRadius + (options.ringGap * 0.34),
+          bandVerticalScale: verticalScale,
+        }));
+
+        outerRadius = Math.max(outerRadius, ringRadius + (options.ringGap * 0.34) + options.bandPadding);
+      });
+
+      cursor += ringNodes.length;
+      ringIndex += 1;
+    }
+
+    return { outerRadius };
+  }
+
+  resolveNodeRadius(node) {
+    if (node.is_cycle_member || node.shared_seed_count >= 2) {
+      return this.sharedRadius;
+    }
+    return this.singleRadius;
   }
 
   collectGroups() {
@@ -251,6 +384,8 @@ export class GraphLayoutEngine {
       : this.nodeCount > 800
         ? 3.5
         : 5.5;
+    const layeredIterationsBonus = this.usesLayeredSingleSeedLayout ? 8 : 0;
+    const layeredPaddingBonus = this.usesLayeredSingleSeedLayout ? 2.5 : 0;
     const maxRadius = items.reduce((maxValue, item) => Math.max(maxValue, item.radius), 0);
     const cellSize = Math.max(36, maxRadius * 3.2);
     const bounds = {
@@ -260,8 +395,10 @@ export class GraphLayoutEngine {
       maxY: this.worldHeight - 30,
     };
 
-    for (let iteration = 0; iteration < iterations; iteration += 1) {
-      const attraction = Math.max(0.045, 0.12 - iteration * 0.008);
+    for (let iteration = 0; iteration < iterations + layeredIterationsBonus; iteration += 1) {
+      const attraction = this.usesLayeredSingleSeedLayout
+        ? Math.max(0.018, 0.065 - iteration * 0.003)
+        : Math.max(0.045, 0.12 - iteration * 0.008);
 
       items.forEach((item) => {
         if (item.fixed) return;
@@ -282,7 +419,7 @@ export class GraphLayoutEngine {
 
             bucket.forEach((otherIndex) => {
               if (otherIndex <= index) return;
-              resolveCollision(items[index], items[otherIndex], padding);
+              resolveCollision(items[index], items[otherIndex], padding + layeredPaddingBonus);
             });
           }
         }
@@ -292,6 +429,20 @@ export class GraphLayoutEngine {
         if (item.fixed) return;
         item.targetX = clamp(item.targetX, bounds.minX, bounds.maxX);
         item.targetY = clamp(item.targetY, bounds.minY, bounds.maxY);
+
+        if (Number.isFinite(item.bandMinRadius) && Number.isFinite(item.bandMaxRadius)) {
+          const centerX = item.bandCenterX ?? this.centerX;
+          const centerY = item.bandCenterY ?? this.centerY;
+          const verticalScale = item.bandVerticalScale ?? 0.84;
+          const deltaX = item.targetX - centerX;
+          const deltaY = item.targetY - centerY;
+          const distance = Math.max(0.0001, Math.hypot(deltaX, deltaY / verticalScale));
+          const clampedDistance = clamp(distance, item.bandMinRadius, item.bandMaxRadius);
+          item.targetX = centerX + (deltaX / distance) * clampedDistance;
+          item.targetY = centerY + (deltaY / distance) * clampedDistance * verticalScale;
+          item.targetX = clamp(item.targetX, bounds.minX, bounds.maxX);
+          item.targetY = clamp(item.targetY, bounds.minY, bounds.maxY);
+        }
       });
     }
   }
@@ -307,6 +458,11 @@ export class GraphLayoutEngine {
       homeY: geometry.homeY,
       radius: geometry.radius,
       fixed: geometry.fixed,
+      bandCenterX: geometry.bandCenterX ?? null,
+      bandCenterY: geometry.bandCenterY ?? null,
+      bandMinRadius: geometry.bandMinRadius ?? null,
+      bandMaxRadius: geometry.bandMaxRadius ?? null,
+      bandVerticalScale: geometry.bandVerticalScale ?? null,
     };
   }
 }

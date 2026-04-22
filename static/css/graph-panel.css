@@ -1,4 +1,6 @@
 .graph-panel {
+  display: flex;
+  flex-direction: column;
   padding: 18px;
   min-height: 760px;
   height: 100%;
@@ -6,6 +8,7 @@
 
 .graph-stage {
   position: relative;
+  flex: 1 1 auto;
   min-height: 720px;
   height: 100%;
   border-radius: calc(var(--radius-xl) - 8px);
@@ -34,7 +37,8 @@
 #graph-canvas,
 #deep-analysis-graph-canvas {
   width: 100%;
-  height: 720px;
+  min-height: 720px;
+  height: 100%;
   display: block;
   cursor: default;
   touch-action: none;
