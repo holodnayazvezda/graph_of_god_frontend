@@ -47,3 +47,55 @@ def get_social_graph_job(job_id: str):
 
     payload["status_url"] = f"/api/social-graphs/jobs/{payload['job_id']}"
     return jsonify(payload), HTTPStatus.OK
+
+
+@api_bp.post("/deep-friend-analysis/jobs")
+def create_deep_friend_analysis_job():
+    payload = request.get_json(silent=True) or {}
+    profile = str(payload.get("profile", "")).strip()
+    if not profile:
+        return jsonify({"detail": "Нужно указать профиль VK."}), HTTPStatus.BAD_REQUEST
+
+    raw_depth = payload.get("depth")
+    try:
+        depth = int(raw_depth)
+    except (TypeError, ValueError):
+        return jsonify({"detail": "Поле depth должно быть целым числом."}), HTTPStatus.BAD_REQUEST
+
+    if depth <= 0:
+        return jsonify({"detail": "Глубина анализа должна быть больше нуля."}), HTTPStatus.BAD_REQUEST
+
+    frontend_config = current_app.config["FRONTEND_CONFIG"]
+    if depth > frontend_config.max_deep_analysis_depth:
+        return (
+            jsonify(
+                {
+                    "detail": (
+                        "Глубина анализа превышает лимит frontend. "
+                        f"Максимум: {frontend_config.max_deep_analysis_depth}."
+                    )
+                }
+            ),
+            HTTPStatus.BAD_REQUEST,
+        )
+
+    backend_client = current_app.extensions["backend_client"]
+    try:
+        payload = backend_client.create_deep_friend_analysis_job(profile, depth)
+    except BackendClientError as error:
+        return jsonify({"detail": str(error)}), error.status_code
+
+    payload["status_url"] = f"/api/deep-friend-analysis/jobs/{payload['job_id']}"
+    return jsonify(payload), HTTPStatus.ACCEPTED
+
+
+@api_bp.get("/deep-friend-analysis/jobs/<job_id>")
+def get_deep_friend_analysis_job(job_id: str):
+    backend_client = current_app.extensions["backend_client"]
+    try:
+        payload = backend_client.get_deep_friend_analysis_job(job_id)
+    except BackendClientError as error:
+        return jsonify({"detail": str(error)}), error.status_code
+
+    payload["status_url"] = f"/api/deep-friend-analysis/jobs/{payload['job_id']}"
+    return jsonify(payload), HTTPStatus.OK

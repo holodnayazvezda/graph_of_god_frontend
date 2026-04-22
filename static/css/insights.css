@@ -2,6 +2,17 @@
   padding: 22px;
 }
 
+.insight-head-collapsible {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.insight-head-copy {
+  min-width: 0;
+}
+
 .seed-profiles-list,
 .overlaps-list {
   margin-top: 18px;
@@ -104,4 +115,10 @@
   border: 1px solid var(--chip-border);
   font-size: 0.8rem;
   color: var(--ink-soft);
+}
+
+@media (max-width: 720px) {
+  .insight-head-collapsible {
+    flex-direction: column;
+  }
 }

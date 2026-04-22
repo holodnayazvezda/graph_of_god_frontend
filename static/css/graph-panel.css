@@ -24,13 +24,15 @@
 }
 
 #graph-canvas,
+#deep-analysis-graph-canvas,
 .empty-state,
 .graph-toolbar {
   position: relative;
   z-index: 1;
 }
 
-#graph-canvas {
+#graph-canvas,
+#deep-analysis-graph-canvas {
   width: 100%;
   height: 720px;
   display: block;
@@ -40,19 +42,24 @@
 }
 
 .graph-stage:fullscreen #graph-canvas,
-.graph-stage.is-fullscreen #graph-canvas {
+.graph-stage:fullscreen #deep-analysis-graph-canvas,
+.graph-stage.is-fullscreen #graph-canvas,
+.graph-stage.is-fullscreen #deep-analysis-graph-canvas {
   height: 100dvh;
 }
 
-#graph-canvas.is-interactive {
+#graph-canvas.is-interactive,
+#deep-analysis-graph-canvas.is-interactive {
   cursor: grab;
 }
 
-#graph-canvas.is-interactive.is-hover-link {
+#graph-canvas.is-interactive.is-hover-link,
+#deep-analysis-graph-canvas.is-interactive.is-hover-link {
   cursor: pointer;
 }
 
-#graph-canvas.is-interactive.is-panning {
+#graph-canvas.is-interactive.is-panning,
+#deep-analysis-graph-canvas.is-interactive.is-panning {
   cursor: grabbing;
 }
 
@@ -148,4 +155,44 @@
   box-shadow: var(--tooltip-shadow);
   transform: translate(14px, 14px);
   z-index: 4;
+}
+
+.graph-tooltip-title {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.graph-tooltip-subtitle {
+  display: block;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.graph-tooltip-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.graph-tooltip-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.graph-tooltip-key {
+  min-width: 1.9em;
+  padding: 3px 6px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: 0.76rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  text-align: center;
+}
+
+.graph-tooltip-shortcut-label {
+  color: rgba(255, 255, 255, 0.92);
 }

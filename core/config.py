@@ -18,6 +18,7 @@ class FrontendConfig:
     secret_key: str = "graph-of-god-frontend-dev"
     request_timeout_seconds: float = 60.0
     max_profiles: int = 5
+    max_deep_analysis_depth: int = 6
     poll_interval_ms: int = 1500
 
     @classmethod
@@ -45,6 +46,10 @@ class FrontendConfig:
             raw_value=os.getenv("GRAPH_OF_GOD_FRONTEND_MAX_PROFILES", "5").strip() or "5",
             field_name="GRAPH_OF_GOD_FRONTEND_MAX_PROFILES",
         )
+        max_deep_analysis_depth = _parse_positive_int(
+            raw_value=os.getenv("GRAPH_OF_GOD_FRONTEND_MAX_DEEP_ANALYSIS_DEPTH", "6").strip() or "6",
+            field_name="GRAPH_OF_GOD_FRONTEND_MAX_DEEP_ANALYSIS_DEPTH",
+        )
         poll_interval_ms = _parse_positive_int(
             raw_value=os.getenv("GRAPH_OF_GOD_FRONTEND_POLL_INTERVAL_MS", "1500").strip() or "1500",
             field_name="GRAPH_OF_GOD_FRONTEND_POLL_INTERVAL_MS",
@@ -57,6 +62,7 @@ class FrontendConfig:
             secret_key=secret_key,
             request_timeout_seconds=request_timeout_seconds,
             max_profiles=max_profiles,
+            max_deep_analysis_depth=max_deep_analysis_depth,
             poll_interval_ms=poll_interval_ms,
         )
 

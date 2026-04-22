@@ -1,3 +1,5 @@
+export const THEME_CHANGE_EVENT = "graph-of-god-themechange";
+
 const THEME_STORAGE_KEY = "graph-of-god-theme";
 
 export function resolveStoredTheme() {

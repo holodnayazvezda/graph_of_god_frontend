@@ -1,7 +1,6 @@
 export function createDomRefs(documentRef) {
   return {
     body: documentRef.body,
-    rootElement: documentRef.documentElement,
     form: documentRef.getElementById("profiles-form"),
     profilesList: documentRef.getElementById("profiles-list"),
     addProfileButton: documentRef.getElementById("add-profile-button"),
@@ -20,7 +19,6 @@ export function createDomRefs(documentRef) {
     graphStage: documentRef.getElementById("graph-stage"),
     focusState: documentRef.getElementById("focus-state"),
     fullscreenButton: documentRef.getElementById("fullscreen-button"),
-    themeToggleButton: documentRef.getElementById("theme-toggle-button"),
     highlightAllButton: documentRef.getElementById("highlight-all-button"),
     zoomLevel: documentRef.getElementById("zoom-level"),
     resetViewButton: documentRef.getElementById("reset-view-button"),

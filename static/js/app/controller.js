@@ -2,13 +2,7 @@ import { createDomRefs, readPageConfig } from "./dom.js";
 import { buildIntersectionGroups } from "./intersections.js";
 import { renderOverlaps, renderSeedProfiles, updateActiveCards } from "./panels.js";
 import { SocialGraphApiClient } from "./social-graph-api.js";
-import {
-  applyTheme,
-  getNextTheme,
-  getThemeToggleLabel,
-  persistTheme,
-  resolveInitialTheme,
-} from "./theme.js";
+import { THEME_CHANGE_EVENT } from "./theme.js";
 import { GraphRenderer } from "../graph/renderer.js";
 
 const ALL_SHARED_FOCUS_KEY = "shared:all";
@@ -16,12 +10,10 @@ const ALL_SHARED_FOCUS_KEY = "shared:all";
 export class GraphOfGodApp {
   constructor(documentRef) {
     this.document = documentRef;
-    this.window = documentRef.defaultView;
     this.dom = createDomRefs(documentRef);
     this.config = readPageConfig(this.dom.body);
     this.api = new SocialGraphApiClient();
     this.renderer = new GraphRenderer(this.dom.canvas, this.dom.tooltip);
-    this.currentTheme = resolveInitialTheme(this.window, this.dom.rootElement);
     this.state = {
       pollHandle: null,
       latestJobId: null,
@@ -33,25 +25,23 @@ export class GraphOfGodApp {
   }
 
   boot() {
-    this.setTheme(this.currentTheme, { persist: false });
     this.addProfileRow("https://vk.com/durov");
     this.addProfileRow("");
 
     this.dom.addProfileButton.addEventListener("click", () => this.handleAddProfile());
     this.dom.fullscreenButton.addEventListener("click", () => this.toggleFullscreen());
-    this.dom.themeToggleButton.addEventListener("click", () => this.toggleTheme());
     this.dom.highlightAllButton.addEventListener("click", () => this.toggleAllSharedFocus());
     this.dom.resetViewButton.addEventListener("click", () => this.renderer.resetView());
     this.dom.form.addEventListener("submit", (event) => this.onSubmit(event));
     window.addEventListener("resize", () => this.renderer.handleResize());
     this.document.addEventListener("fullscreenchange", () => this.handleFullscreenChange());
+    window.addEventListener(THEME_CHANGE_EVENT, () => this.renderer.requestRender());
     this.renderer.setViewportListener((viewportState) => this.updateViewportUi(viewportState));
     this.renderer.setNodeActivateListener((node) => this.openNodeProfile(node));
 
     this.updateProfileControls();
     this.updateFocusUi();
     this.updateFullscreenUi();
-    this.updateThemeUi();
   }
 
   handleAddProfile() {
@@ -382,29 +372,7 @@ export class GraphOfGodApp {
       return;
     }
 
-    this.window.open(node.profile_url, "_blank", "noopener,noreferrer");
-  }
-
-  toggleTheme() {
-    this.setTheme(getNextTheme(this.currentTheme));
-  }
-
-  setTheme(theme, options = {}) {
-    const { persist = true } = options;
-    this.currentTheme = theme;
-    applyTheme(this.dom.rootElement, theme);
-    if (persist) {
-      persistTheme(theme);
-    }
-    this.updateThemeUi();
-    this.renderer.requestRender();
-  }
-
-  updateThemeUi() {
-    const isDark = this.currentTheme === "dark";
-    this.dom.themeToggleButton.textContent = getThemeToggleLabel(this.currentTheme);
-    this.dom.themeToggleButton.setAttribute("aria-pressed", String(isDark));
-    this.dom.themeToggleButton.setAttribute("title", this.dom.themeToggleButton.textContent);
+    window.open(node.profile_url, "_blank", "noopener,noreferrer");
   }
 
   async toggleFullscreen() {

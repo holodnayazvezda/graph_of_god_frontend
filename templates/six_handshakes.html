@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Глубокий анализ друзей | GraphOfGod{% endblock %}
+
+{% block body_attributes %} data-max-depth="{{ max_depth }}" data-poll-interval-ms="{{ poll_interval_ms }}"{% endblock %}
+
+{% block content %}
+  <section class="hero theory-hero">
+    <div class="hero-copy theory-hero-copy">
+      <p class="eyebrow">Новый сценарий</p>
+      <h1>Глубокий анализ друзей</h1>
+      <p class="hero-text">
+        Укажи один профиль VK и глубину обхода. Backend пройдёт друзей по уровням, отбросит
+        приватные профили и оставит на графе только те ветки, где удалось обнаружить циклы.
+      </p>
+    </div>
+
+    <div class="hero-card theory-status-card">
+      <div class="metric">
+        <span class="metric-label">Глубина</span>
+        <strong id="deep-analysis-requested-depth">0</strong>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Циклы</span>
+        <strong id="deep-analysis-cycle-count">0</strong>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Узлы на графе</span>
+        <strong id="deep-analysis-rendered-node-count">0</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="workspace">
+    <aside class="control-panel deep-analysis-panel">
+      <div class="panel-head">
+        <h2>Профиль и глубина</h2>
+        <p>Один корневой профиль и глубина обхода друзей. На граф уйдут только найденные циклы и путь до них.</p>
+      </div>
+
+      <form id="deep-analysis-form" class="profile-form">
+        <div class="deep-analysis-form-grid">
+          <label class="field-stack">
+            <span class="field-label">Профиль VK</span>
+            <input
+              id="deep-analysis-profile-input"
+              class="profile-input deep-analysis-input"
+              type="text"
+              placeholder="https://vk.com/durov или screen_name"
+            >
+            <span class="field-caption">Поддерживается ссылка на профиль, `vk.com/...` и обычный username.</span>
+          </label>
+
+          <label class="field-stack">
+            <span class="field-label">Глубина обхода</span>
+            <input
+              id="deep-analysis-depth-input"
+              class="profile-input deep-analysis-number"
+              type="number"
+              min="1"
+              max="{{ max_depth }}"
+              step="1"
+              inputmode="numeric"
+            >
+            <span class="field-caption">Например, глубина `2` означает друзей пользователя и друзей каждого из них.</span>
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" id="deep-analysis-submit-button" class="button primary">
+            Найти циклы
+          </button>
+        </div>
+      </form>
+
+      <section id="deep-analysis-status-panel" class="status-panel">
+        <p class="status-kicker">Статус</p>
+        <h3 id="deep-analysis-status-title">Ожидание запроса</h3>
+        <p id="deep-analysis-status-text">
+          После запуска здесь появится состояние backend job, глубина обхода и итог по найденным циклам.
+        </p>
+      </section>
+
+      <section class="legend-panel">
+        <h3>Легенда</h3>
+        <div class="legend-list">
+          <span class="legend-chip seed">Корневой профиль</span>
+          <span class="legend-chip shared">Узел цикла</span>
+          <span class="legend-chip single">Путь к циклу</span>
+        </div>
+      </section>
+    </aside>
+
+    <section class="graph-panel">
+      <div id="deep-analysis-graph-stage" class="graph-stage">
+        <div class="graph-toolbar">
+          <div id="deep-analysis-focus-state" class="focus-state" hidden></div>
+          <div class="graph-toolbar-actions">
+            <span class="graph-hint">Потяните граф мышью, колесо меняет масштаб, на hover: O открыть VK, P подсветить связи</span>
+            <span id="deep-analysis-zoom-level" class="zoom-level" hidden>100%</span>
+            <button type="button" id="deep-analysis-fullscreen-button" class="button ghost subtle">
+              Во весь экран
+            </button>
+            <button type="button" id="deep-analysis-highlight-cycles-button" class="button ghost subtle" hidden>
+              Подсветить все циклы
+            </button>
+            <button type="button" id="deep-analysis-direct-friends-button" class="button ghost subtle" hidden>
+              Убрать не-друзей
+            </button>
+            <button type="button" id="deep-analysis-reset-view-button" class="button ghost subtle" hidden>
+              Сбросить вид
+            </button>
+          </div>
+        </div>
+
+        <div id="deep-analysis-empty-state" class="empty-state">
+          <div>
+            <h2>Граф пока не построен</h2>
+            <p>
+              Введите профиль VK, выберите глубину обхода и дождитесь, пока backend найдёт
+              циклы
+              в доступной сети друзей.
+            </p>
+          </div>
+        </div>
+
+        <canvas id="deep-analysis-graph-canvas"></canvas>
+        <div id="deep-analysis-graph-tooltip" class="graph-tooltip" hidden></div>
+      </div>
+    </section>
+  </section>
+
+  <section class="insights theory-insights">
+    <article class="insight-card">
+      <div class="insight-head">
+        <h2>Корневой профиль</h2>
+        <p>Сводка по корню анализа, первой глубине друзей и ограничениями, которые сработали во время обхода.</p>
+      </div>
+      <div id="deep-analysis-root-profile" class="seed-profiles-list"></div>
+    </article>
+
+    <article class="insight-card">
+      <div class="insight-head insight-head-collapsible">
+        <div class="insight-head-copy">
+          <h2>Найденные циклы</h2>
+          <p>Каждая карточка подсвечивает на графе цикл и путь от корня до ближайшей точки входа.</p>
+        </div>
+        <button
+          type="button"
+          id="deep-analysis-cycles-toggle-button"
+          class="button ghost subtle"
+          aria-expanded="false"
+          aria-controls="deep-analysis-cycles-section-body"
+        >
+          Развернуть
+        </button>
+      </div>
+      <div id="deep-analysis-cycles-section-body" hidden>
+        <div id="deep-analysis-cycles-list" class="overlaps-list"></div>
+      </div>
+    </article>
+  </section>
+{% endblock %}
+
+{% block page_scripts %}
+  <script type="module" src="{{ url_for('static', filename='js/deep-analysis.js') }}"></script>
+{% endblock %}

@@ -42,7 +42,8 @@
   }
 
   .graph-stage,
-  #graph-canvas {
+  #graph-canvas,
+  #deep-analysis-graph-canvas {
     min-height: 600px;
     height: 600px;
   }
@@ -88,7 +89,8 @@
   }
 
   .graph-stage,
-  #graph-canvas {
+  #graph-canvas,
+  #deep-analysis-graph-canvas {
     min-height: 480px;
     height: 480px;
   }

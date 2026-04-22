@@ -64,10 +64,50 @@
 
 .status-panel,
 .legend-panel {
+  position: relative;
   padding: 16px 18px;
   border-radius: var(--radius-md);
   background: var(--surface-muted);
   border: 1px solid var(--panel-border);
+}
+
+.status-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(94, 159, 255, 0.96) 0 16px,
+      transparent 16px 32px,
+      rgba(42, 171, 238, 0.92) 32px 48px,
+      transparent 48px 64px
+    ) top left / 100% 3px repeat-x,
+    repeating-linear-gradient(
+      180deg,
+      rgba(94, 159, 255, 0.96) 0 16px,
+      transparent 16px 32px,
+      rgba(127, 181, 255, 0.92) 32px 48px,
+      transparent 48px 64px
+    ) top right / 3px 100% repeat-y,
+    repeating-linear-gradient(
+      270deg,
+      rgba(42, 171, 238, 0.96) 0 16px,
+      transparent 16px 32px,
+      rgba(94, 159, 255, 0.92) 32px 48px,
+      transparent 48px 64px
+    ) bottom left / 100% 3px repeat-x,
+    repeating-linear-gradient(
+      0deg,
+      rgba(127, 181, 255, 0.96) 0 16px,
+      transparent 16px 32px,
+      rgba(42, 171, 238, 0.92) 32px 48px,
+      transparent 48px 64px
+    ) top left / 3px 100% repeat-y;
+  transition: opacity 180ms ease;
 }
 
 .status-kicker {
@@ -84,7 +124,13 @@
 }
 
 .status-panel.is-loading {
-  border-color: var(--status-loading-border);
+  border-color: transparent;
+}
+
+.status-panel.is-loading::before {
+  opacity: 1;
+  will-change: background-position;
+  animation: status-panel-loading-flow 8s linear infinite;
 }
 
 .status-panel.is-success {
@@ -93,6 +139,24 @@
 
 .status-panel.is-error {
   border-color: var(--status-error-border);
+}
+
+@keyframes status-panel-loading-flow {
+  from {
+    background-position:
+      0 0,
+      100% 0,
+      0 100%,
+      0 0;
+  }
+
+  to {
+    background-position:
+      768px 0,
+      100% 768px,
+      -768px 100%,
+      0 -768px;
+  }
 }
 
 .legend-list {

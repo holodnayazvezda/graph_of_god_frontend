@@ -6,7 +6,6 @@ import {
   createScreenBounds,
   DEFAULT_AVATAR_BUCKETS,
   easeOutCubic,
-  escapeTooltip,
   getLayoutBounds,
   isCircleVisible,
   isSegmentVisible,
@@ -27,6 +26,7 @@ export class GraphRenderer {
     this.currentPositions = new Map();
     this.hitItems = [];
     this.hoveredNodeId = null;
+    this.hoveredTooltipDescriptor = null;
     this.nodeLayout = [];
     this.nodeLayoutById = new Map();
     this.connectionIndex = new Map();
@@ -35,6 +35,7 @@ export class GraphRenderer {
     this.viewport = new GraphViewport();
     this.viewportListener = null;
     this.nodeActivateListener = null;
+    this.nodeTooltipBuilder = null;
     this.dragState = null;
     this.layoutDirty = false;
     this.animationFrameId = null;
@@ -50,13 +51,10 @@ export class GraphRenderer {
     this.canvas.addEventListener("pointermove", (event) => this.onPointerMove(event));
     this.canvas.addEventListener("pointerup", (event) => this.onPointerUp(event));
     this.canvas.addEventListener("pointercancel", (event) => this.onPointerUp(event));
-    this.canvas.addEventListener("pointerleave", () => {
-      if (!this.dragState?.isPanning) {
-        this.hoveredNodeId = null;
-        this.tooltip.hidden = true;
-      }
-    });
+    this.canvas.addEventListener("pointerleave", (event) => this.onCanvasPointerLeave(event));
     this.canvas.addEventListener("wheel", (event) => this.onWheel(event), { passive: false });
+    window.addEventListener("keydown", (event) => this.onKeyDown(event));
+    this.tooltip.addEventListener("pointerleave", (event) => this.onTooltipPointerLeave(event));
   }
 
   setViewportListener(listener) {
@@ -68,6 +66,80 @@ export class GraphRenderer {
     this.nodeActivateListener = listener;
   }
 
+  setNodeTooltipBuilder(listener) {
+    this.nodeTooltipBuilder = listener;
+  }
+
+  hideTooltip() {
+    this.hoveredNodeId = null;
+    this.hoveredTooltipDescriptor = null;
+    this.tooltip.hidden = true;
+    this.tooltip.classList.remove("has-actions");
+    this.tooltip.replaceChildren();
+    this.canvas.classList.remove("is-hover-link");
+  }
+
+  onCanvasPointerLeave(event) {
+    if (this.dragState?.isPanning) {
+      return;
+    }
+
+    const nextTarget = event.relatedTarget;
+    if (nextTarget && this.tooltip.contains(nextTarget)) {
+      return;
+    }
+
+    this.hideTooltip();
+  }
+
+  onTooltipPointerLeave(event) {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget && this.canvas.contains(nextTarget)) {
+      return;
+    }
+
+    this.hideTooltip();
+  }
+
+  onKeyDown(event) {
+    if (
+      this.tooltip.hidden
+      || !this.hoveredTooltipDescriptor?.actions?.length
+      || event.repeat
+      || event.ctrlKey
+      || event.metaKey
+      || event.altKey
+      || this.isEditableTarget(event.target)
+    ) {
+      return;
+    }
+
+    const pressedKey = String(event.key || "").toLowerCase();
+    if (!pressedKey) {
+      return;
+    }
+
+    const matchedAction = this.hoveredTooltipDescriptor.actions.find((action) => action.shortcut === pressedKey);
+    if (!matchedAction) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    matchedAction.onSelect?.();
+    this.hideTooltip();
+  }
+
+  isEditableTarget(target) {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+
+    return Boolean(
+      target.closest("input, textarea, select, button, [contenteditable='true'], [contenteditable='']")
+    );
+  }
+
   setData(result) {
     this.result = result;
     this.focus = null;
@@ -75,6 +147,7 @@ export class GraphRenderer {
     this.currentPositions = new Map();
     this.hitItems = [];
     this.hoveredNodeId = null;
+    this.hoveredTooltipDescriptor = null;
     this.avatarSpriteCache.clear();
     this.nodeLayout = this.buildLayout(result);
     this.reindexLayout();
@@ -82,6 +155,7 @@ export class GraphRenderer {
     this.preloadAvatars(result.nodes);
     this.canvas.classList.add("is-interactive");
     this.canvas.classList.remove("is-panning", "is-hover-link");
+    this.hideTooltip();
     this.fitViewToLayout();
     this.animationStart = performance.now();
     if (this.animationFrameId) {
@@ -107,7 +181,7 @@ export class GraphRenderer {
     }
 
     this.stopAnimation();
-    this.tooltip.hidden = true;
+    this.hideTooltip();
     this.fitViewToLayout();
     this.notifyViewportChange();
     this.requestRender();
@@ -141,6 +215,7 @@ export class GraphRenderer {
     this.currentPositions = new Map();
     this.hitItems = [];
     this.hoveredNodeId = null;
+    this.hoveredTooltipDescriptor = null;
     this.nodeLayout = [];
     this.nodeLayoutById = new Map();
     this.connectionIndex = new Map();
@@ -150,7 +225,7 @@ export class GraphRenderer {
     this.canvas.classList.remove("is-interactive", "is-panning", "is-hover-link");
     this.resizeCanvas();
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.tooltip.hidden = true;
+    this.hideTooltip();
     this.notifyViewportChange();
   }
 
@@ -387,9 +462,10 @@ export class GraphRenderer {
       if (!isSegmentVisible(source, target, visibleBounds)) continue;
 
       const isActive = !focusNodeIds || (focusNodeIds.has(edge.source_node_id) && focusNodeIds.has(edge.target_node_id));
+      const isHighlightedEdge = edge.is_cycle_edge === true || edge.connected_seed_indices.length > 1;
       this.ctx.globalAlpha = isActive ? 1 : 0.08;
-      this.ctx.lineWidth = clamp((edge.connected_seed_indices.length > 1 ? 1.8 : 1.15) * this.viewport.scale, 0.6, 2.8);
-      this.ctx.strokeStyle = edge.connected_seed_indices.length > 1
+      this.ctx.lineWidth = clamp((isHighlightedEdge ? 1.8 : 1.15) * this.viewport.scale, 0.6, 2.8);
+      this.ctx.strokeStyle = isHighlightedEdge
         ? palette.edgeShared
         : palette.edgeSingle;
 
@@ -446,9 +522,10 @@ export class GraphRenderer {
   }
 
   drawNode(item, isActive, palette) {
+    const isCycleMember = item.node.is_cycle_member === true;
     const ringColor = item.node.is_seed
       ? palette.nodeSeed
-      : item.node.shared_seed_count >= 2
+      : isCycleMember || item.node.shared_seed_count >= 2
         ? palette.nodeShared
         : palette.nodeSingle;
 
@@ -456,7 +533,7 @@ export class GraphRenderer {
     this.ctx.globalAlpha = isActive ? 1 : 0.14;
     if (this.renderProfile?.showShadows && isActive) {
       this.ctx.shadowBlur = clamp(item.radius * 0.65, 0, 18);
-      this.ctx.shadowColor = item.node.shared_seed_count >= 2
+      this.ctx.shadowColor = isCycleMember || item.node.shared_seed_count >= 2
         ? palette.shadowShared
         : palette.shadowSingle;
     } else {
@@ -481,7 +558,7 @@ export class GraphRenderer {
 
     this.ctx.beginPath();
     this.ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
-    this.ctx.lineWidth = clamp((item.node.is_seed ? 3.4 : item.node.shared_seed_count >= 2 ? 2.2 : 1.6) * this.viewport.scale, 1.1, 4);
+    this.ctx.lineWidth = clamp((item.node.is_seed ? 3.4 : isCycleMember || item.node.shared_seed_count >= 2 ? 2.2 : 1.6) * this.viewport.scale, 1.1, 4);
     this.ctx.strokeStyle = ringColor;
     this.ctx.stroke();
 
@@ -616,7 +693,7 @@ export class GraphRenderer {
         event.clientY,
       );
       this.canvas.classList.add("is-panning");
-      this.tooltip.hidden = true;
+      this.hideTooltip();
       this.canvas.setPointerCapture(event.pointerId);
       return;
     }
@@ -656,7 +733,7 @@ export class GraphRenderer {
           const nextY = pointerWorld.y + this.dragState.offsetY;
           this.applyDraggedNodePosition(layoutNode, nextX, nextY, this.dragState);
           this.layoutDirty = true;
-          this.tooltip.hidden = true;
+          this.hideTooltip();
           this.notifyViewportChange();
           this.requestRender();
         }
@@ -676,7 +753,7 @@ export class GraphRenderer {
       if (movedEnough) {
         this.dragState.isPanning = true;
         this.canvas.classList.add("is-panning");
-        this.tooltip.hidden = true;
+        this.hideTooltip();
         this.viewport.panBy(deltaX, deltaY);
         this.notifyViewportChange();
         this.requestRender();
@@ -725,7 +802,7 @@ export class GraphRenderer {
     const zoomFactor = Math.exp(-event.deltaY * (event.ctrlKey ? 0.0025 : 0.0016));
 
     this.viewport.zoomAt(this.viewport.scale * zoomFactor, pointerX, pointerY);
-    this.tooltip.hidden = true;
+    this.hideTooltip();
     this.notifyViewportChange();
     this.requestRender();
   }
@@ -741,29 +818,108 @@ export class GraphRenderer {
     const hovered = this.getHitNode(pointerX, pointerY);
 
     if (!hovered) {
-      this.hoveredNodeId = null;
-      this.canvas.classList.remove("is-hover-link");
-      this.tooltip.hidden = true;
+      this.hideTooltip();
       return;
     }
 
-    const relationshipLabel = hovered.node.is_seed
-      ? `Исходный профиль #${(hovered.node.seed_indices[0] || 0) + 1}`
-      : hovered.node.connected_seed_indices.length > 1
-        ? `Общий друг профилей ${hovered.node.connected_seed_indices.map((index) => `#${index + 1}`).join(", ")}`
-        : `Друг профиля #${(hovered.node.connected_seed_indices[0] || 0) + 1}`;
+    const tooltipDescriptor = this.buildTooltipDescriptor(hovered.node);
+    this.hoveredTooltipDescriptor = tooltipDescriptor;
 
-    this.canvas.classList.toggle("is-hover-link", Boolean(hovered.node.profile_url));
+    this.canvas.classList.toggle(
+      "is-hover-link",
+      Boolean(hovered.node.profile_url || tooltipDescriptor.actions?.length),
+    );
     if (this.hoveredNodeId !== hovered.node.node_id) {
-      this.tooltip.innerHTML = `
-        <strong>${escapeTooltip(hovered.node.full_name)}</strong><br>
-        <span>${escapeTooltip(relationshipLabel)}</span>
-      `;
+      this.renderTooltipContent(tooltipDescriptor);
       this.hoveredNodeId = hovered.node.node_id;
     }
     this.tooltip.style.left = `${pointerX}px`;
     this.tooltip.style.top = `${pointerY}px`;
     this.tooltip.hidden = false;
+  }
+
+  buildRelationshipLabel(node) {
+    if (typeof node.is_cycle_member === "boolean") {
+      if (node.is_seed) {
+        return "Корневой профиль";
+      }
+
+      const depthLabel = Number.isFinite(node.distance_from_root)
+        ? `, глубина ${node.distance_from_root}`
+        : "";
+      return node.is_cycle_member
+        ? `Узел цикла${depthLabel}`
+        : `Путь к циклу${depthLabel}`;
+    }
+
+    if (node.is_seed) {
+      return `Исходный профиль #${(node.seed_indices[0] || 0) + 1}`;
+    }
+
+    if (node.connected_seed_indices.length > 1) {
+      return `Общий друг профилей ${node.connected_seed_indices.map((index) => `#${index + 1}`).join(", ")}`;
+    }
+
+    return `Друг профиля #${(node.connected_seed_indices[0] || 0) + 1}`;
+  }
+
+  buildTooltipDescriptor(node) {
+    const fallbackDescriptor = {
+      title: node.full_name,
+      subtitle: this.buildRelationshipLabel(node),
+      actions: [],
+    };
+
+    if (!this.nodeTooltipBuilder) {
+      return fallbackDescriptor;
+    }
+
+    return {
+      ...fallbackDescriptor,
+      ...(this.nodeTooltipBuilder(node, fallbackDescriptor) || {}),
+    };
+  }
+
+  renderTooltipContent(descriptor) {
+    this.tooltip.replaceChildren();
+    this.tooltip.classList.toggle("has-actions", Boolean(descriptor.actions?.length));
+
+    const title = document.createElement("strong");
+    title.className = "graph-tooltip-title";
+    title.textContent = descriptor.title;
+    this.tooltip.appendChild(title);
+
+    if (descriptor.subtitle) {
+      const subtitle = document.createElement("span");
+      subtitle.className = "graph-tooltip-subtitle";
+      subtitle.textContent = descriptor.subtitle;
+      this.tooltip.appendChild(subtitle);
+    }
+
+    if (!descriptor.actions?.length) {
+      return;
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "graph-tooltip-actions";
+
+    descriptor.actions.forEach((action) => {
+      const row = document.createElement("div");
+      row.className = "graph-tooltip-shortcut";
+
+      const key = document.createElement("kbd");
+      key.className = "graph-tooltip-key";
+      key.textContent = String(action.shortcut || "").toUpperCase();
+
+      const label = document.createElement("span");
+      label.className = "graph-tooltip-shortcut-label";
+      label.textContent = action.label;
+
+      row.append(key, label);
+      actions.appendChild(row);
+    });
+
+    this.tooltip.appendChild(actions);
   }
 
   getHitNode(pointerX, pointerY) {

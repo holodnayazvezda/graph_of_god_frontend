@@ -1,0 +1,32 @@
+<header class="site-header">
+  <div class="site-header-shell">
+    <a href="{{ url_for('web.index') }}" class="site-brand">
+      <span class="site-brand-mark">G</span>
+      <span class="site-brand-copy">
+        <strong>GraphOfGod</strong>
+        <span>Графовые связи и теория близости</span>
+      </span>
+    </a>
+
+    <div class="site-header-actions">
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a
+          href="{{ url_for('web.index') }}"
+          class="site-nav-link{% if active_page == 'graph' %} is-active{% endif %}"
+        >
+          Граф связей
+        </a>
+        <a
+          href="{{ url_for('web.deep_friend_analysis') }}"
+          class="site-nav-link{% if active_page == 'deep_friend_analysis' %} is-active{% endif %}"
+        >
+          Глубокий анализ друзей
+        </a>
+      </nav>
+
+      <button type="button" id="theme-toggle-button" class="theme-toggle-button" aria-pressed="false">
+        Тёмная тема
+      </button>
+    </div>
+  </div>
+</header>

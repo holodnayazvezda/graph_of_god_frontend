@@ -31,11 +31,34 @@ class BackendClient:
     def get_social_graph_job(self, job_id: str) -> dict[str, object]:
         return self._request_json("GET", f"/api/v1/social-graphs/jobs/{job_id}")
 
-    def _request_json(self, method: str, path: str) -> dict[str, object]:
+    def create_deep_friend_analysis_job(self, profile: str, depth: int) -> dict[str, object]:
+        payload = json.dumps({"profile": profile, "depth": depth}).encode("utf-8")
+        return self._request_json(
+            "POST",
+            "/api/v1/deep-friend-analysis/jobs",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+
+    def get_deep_friend_analysis_job(self, job_id: str) -> dict[str, object]:
+        return self._request_json("GET", f"/api/v1/deep-friend-analysis/jobs/{job_id}")
+
+    def _request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        data: bytes | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, object]:
         request = Request(
             f"{self._base_url}{path}",
             method=method,
-            headers={"Accept": "application/json"},
+            data=data,
+            headers={
+                "Accept": "application/json",
+                **(headers or {}),
+            },
         )
 
         try:

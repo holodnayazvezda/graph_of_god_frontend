@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}GraphOfGod Frontend{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+    <script>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem("graph-of-god-theme");
+          var theme = (savedTheme === "light" || savedTheme === "dark")
+            ? savedTheme
+            : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.dataset.theme = theme;
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      }());
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hero.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/control-panel.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/graph-panel.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/insights.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theory.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    {% block extra_head %}{% endblock %}
+  </head>
+  <body{% block body_attributes %}{% endblock %}>
+    <main class="page-shell">
+      {% include "partials/_site_header.html" %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <script type="module" src="{{ url_for('static', filename='js/shell.js') }}"></script>
+    {% block page_scripts %}{% endblock %}
+  </body>
+</html>

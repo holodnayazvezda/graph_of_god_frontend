@@ -1,39 +1,15 @@
-<!doctype html>
-<html lang="ru">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>GraphOfGod Frontend</title>
-    <script>
-      (function () {
-        try {
-          var savedTheme = localStorage.getItem("graph-of-god-theme");
-          var theme = (savedTheme === "light" || savedTheme === "dark")
-            ? savedTheme
-            : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-          document.documentElement.dataset.theme = theme;
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
-        }
-      }());
-    </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/hero.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/control-panel.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/graph-panel.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/insights.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-  </head>
-  <body data-max-profiles="{{ max_profiles }}" data-poll-interval-ms="{{ poll_interval_ms }}">
-    <button type="button" id="theme-toggle-button" class="theme-toggle-button" aria-pressed="false">
-      Тёмная тема
-    </button>
-    <main class="page-shell">
-      {% include "partials/_hero.html" %}
-      {% include "partials/_workspace.html" %}
-      {% include "partials/_insights.html" %}
-    </main>
+{% extends "base.html" %}
 
-    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-  </body>
-</html>
+{% block title %}Граф связей VK | GraphOfGod{% endblock %}
+
+{% block body_attributes %} data-max-profiles="{{ max_profiles }}" data-poll-interval-ms="{{ poll_interval_ms }}"{% endblock %}
+
+{% block content %}
+  {% include "partials/_hero.html" %}
+  {% include "partials/_workspace.html" %}
+  {% include "partials/_insights.html" %}
+{% endblock %}
+
+{% block page_scripts %}
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
